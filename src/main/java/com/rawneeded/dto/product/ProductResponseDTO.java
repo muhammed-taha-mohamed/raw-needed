@@ -1,5 +1,7 @@
 package com.rawneeded.dto.product;
 
+import com.rawneeded.enummeration.Category;
+import com.rawneeded.enummeration.SubCategory;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,4 +21,6 @@ public class ProductResponseDTO {
     private String contactPersonName;
     private String contactPersonPhoneNumber;
     private boolean inStock;
+    private Category category;
+    private SubCategory subCategory;
 }

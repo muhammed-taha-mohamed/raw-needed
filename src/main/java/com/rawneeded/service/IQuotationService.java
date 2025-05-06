@@ -7,18 +7,7 @@ import com.rawneeded.dto.user.CreateUserDto;
 import com.rawneeded.dto.user.UserRequestDto;
 import com.rawneeded.dto.user.UserResponseDto;
 
-public interface IUserService {
+public interface IQuotationService {
 
-
-    UserResponseDto register(CreateUserDto dto);
-
-    String update(String id, UserRequestDto dto);
-
-    void delete(String id);
-
-    LoginResponseDTO login(LoginDTO loginDTO);
-
-    Boolean updatePasswordByOTP(ForgetPasswordDTO dto);
-
-    UserResponseDto findById(String id);
+    void sendQuotationRequests(String userId);
 }

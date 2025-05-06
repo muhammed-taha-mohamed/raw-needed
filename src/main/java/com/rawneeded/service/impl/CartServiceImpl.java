@@ -2,13 +2,19 @@ package com.rawneeded.service.impl;
 
 import com.rawneeded.dto.MailDto;
 import com.rawneeded.dto.product.CartDTO;
+import com.rawneeded.dto.product.CartItemDTO;
 import com.rawneeded.dto.product.ProductResponseDTO;
+import com.rawneeded.dto.user.UserResponseDto;
 import com.rawneeded.error.exceptions.AbstractException;
+import com.rawneeded.mapper.CartMapper;
 import com.rawneeded.mapper.ProductMapper;
 import com.rawneeded.model.Cart;
 import com.rawneeded.model.Product;
+import com.rawneeded.model.User;
 import com.rawneeded.repository.CartRepository;
+import com.rawneeded.repository.ProductRepository;
 import com.rawneeded.service.ICartService;
+import com.rawneeded.service.IUserService;
 import com.rawneeded.util.MessagesUtil;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +24,9 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+import static com.rawneeded.enummeration.TemplateName.QUOTATION_TEMPLATE;
 import static com.rawneeded.enummeration.TemplateName.WELCOME_TEMPLATE;
 
 
@@ -28,17 +36,20 @@ import static com.rawneeded.enummeration.TemplateName.WELCOME_TEMPLATE;
 public class CartServiceImpl implements ICartService {
 
     private final CartRepository cartRepository;
-    private final MessagesUtil messagesUtil;
-    private final NotificationService notificationService;
+    private final CartMapper cartMapper;
     private final ProductMapper productMapper;
-    private final MongoTemplate mongoTemplate;
+    private final ProductRepository productRepository;
 
 
     @Override
     public void create(String userId) {
         try {
             log.info("Start creating a cart to user : {}", userId);
-            cartRepository.save(Cart.builder().userId(userId).build());
+            cartRepository.save(
+                    Cart.builder()
+                            .userId(userId)
+                            .items(new ArrayList<>())
+                            .build());
         } catch (Exception e) {
             log.error("Failed to create a cart due to : {}", e.getMessage());
             throw new AbstractException(e.getMessage());
@@ -53,7 +64,7 @@ public class CartServiceImpl implements ICartService {
             Cart cart = cartRepository.findByUserId(userId).orElse(Cart.builder().userId(userId)
                     .items(new ArrayList<>())
                     .build());
-            return mapToDTO(cart);
+            return cartMapper.toDTO(cart);
         } catch (Exception e) {
             log.error("Failed to get user cart due to : {}", e.getMessage());
             throw new AbstractException(e.getMessage());
@@ -69,7 +80,7 @@ public class CartServiceImpl implements ICartService {
                     .build());
             cart.setItems(new ArrayList<>());
             cart = cartRepository.save(cart);
-            return mapToDTO(cart);
+            return cartMapper.toDTO(cart);
         } catch (Exception e) {
             log.error("Failed to clear user cart due to : {}", e.getMessage());
             throw new AbstractException(e.getMessage());
@@ -77,66 +88,32 @@ public class CartServiceImpl implements ICartService {
     }
 
     @Override
-    public CartDTO addItemToCart(String userId, String productId) {
+    public CartDTO addItemToCart(String userId, String productId, float quantity) {
         try {
             log.info("Start adding item to cart : {}", userId);
             Cart cart = cartRepository.findByUserId(userId)
                     .orElse(Cart.builder().userId(userId)
                             .items(new ArrayList<>())
                             .build());
-            cart.getItems().add(Product.builder()
-                    .id(productId)
-                    .build());
+
+            cart.setItems(cart.getItems() == null ? new ArrayList<>() : cart.getItems());
+
+            Product product = productRepository.findById(productId)
+                    .orElseThrow(() -> new AbstractException("Product not found"));
+
+
+            CartItemDTO newItem = productMapper.toCartItemDto(product);
+            newItem.setQuantity(quantity);
+            cart.getItems().add(newItem);
 
             cart = cartRepository.save(cart);
-            return mapToDTO(cart);
+            return cartMapper.toDTO(cart);
         } catch (Exception e) {
             log.error("Failed to add item to cart due to : {}", e.getMessage());
             throw new AbstractException(e.getMessage());
         }
     }
 
-    public void sendQuotationRequests(String userId) {
-        try {
-
-            Cart cart = cartRepository.findByUserId(userId).orElse(Cart.builder().userId(userId)
-                    .items(new ArrayList<>())
-                    .build());
-            List<Product> products = cart.getItems();
-
-
-            String subject = messagesUtil.getMessage("new.quotation.subject");
-
-
-            notificationService.sendEmail(
-                    MailDto.builder()
-                            .toEmail("mohamedtahaomk35@gmail.com")
-                            .subject("Test")
-                            .templateName(WELCOME_TEMPLATE)
-                            .model(Map.of(
-                                    "supplier_name", "testMail",
-                                    "customer_name", "",
-                                    "customer_email", "",
-                                    "customer_phone", "",
-                                    "data", ""
-                                    ))
-                            .build()
-            );
-
-            log.info("Start sending quotation requests to suppliers : {}", userId);
-        } catch (Exception e) {
-            log.error("Failed to send quotation requests to suppliers due to : {}", e.getMessage());
-            throw new AbstractException(e.getMessage());
-        }
-    }
-
-
-    private CartDTO mapToDTO(Cart cart) {
-        return CartDTO.builder()
-                .userId(cart.getUserId())
-                .items(productMapper.toResponseList(cart.getItems()))
-                .build();
-    }
 
 }
 

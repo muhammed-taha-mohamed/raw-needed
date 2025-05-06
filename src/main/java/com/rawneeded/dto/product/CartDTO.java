@@ -14,5 +14,5 @@ import java.util.List;
 @Builder
 public class CartDTO {
     private String userId;
-    List<ProductResponseDTO> items;
+    List<CartItemDTO> items;
 }

@@ -1,5 +1,6 @@
 package com.rawneeded.mapper;
 
+import com.rawneeded.dto.product.CartItemDTO;
 import com.rawneeded.dto.product.ProductRequestDTO;
 import com.rawneeded.dto.product.ProductResponseDTO;
 import com.rawneeded.model.Product;
@@ -31,4 +32,11 @@ public interface ProductMapper {
     default List<ProductResponseDTO> toResponseList(List<Product> products) {
         return products.stream().map(this::toResponseDto).toList();
     }
+
+
+    @Mappings({
+            @Mapping(source ="supplier.id" , target = "supplierId" ),
+            @Mapping(source ="supplier.name" , target = "supplierName" )
+    })
+    CartItemDTO toCartItemDto(Product product);
 }

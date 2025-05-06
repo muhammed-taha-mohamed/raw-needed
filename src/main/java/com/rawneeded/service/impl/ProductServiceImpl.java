@@ -98,6 +98,13 @@ public class ProductServiceImpl implements IProductService {
                 criteriaList.add(Criteria.where("supplier.$id").is(new ObjectId(filterDTO.getSupplierId())));
             }
 
+            if (filterDTO.getCategory() != null) {
+                criteriaList.add(Criteria.where("category").is(filterDTO.getCategory()));
+            }
+
+            if (filterDTO.getSubCategory() != null) {
+                criteriaList.add(Criteria.where("subCategory").is(filterDTO.getSubCategory()));
+            }
 
             Query query = new Query();
             if (!criteriaList.isEmpty()) {

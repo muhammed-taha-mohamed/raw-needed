@@ -1,15 +1,12 @@
 package com.rawneeded.model;
 
-
-import com.rawneeded.dto.product.CartItemDTO;
-import com.rawneeded.dto.product.ProductResponseDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @AllArgsConstructor
@@ -17,8 +14,9 @@ import java.util.List;
 @Data
 @Document
 @Builder
-public class Cart {
+public class Quotation {
     private String id;
-    private String userId;
-    private List<CartItemDTO> items;
+    private User user;
+    private List<Product> items;
+    private LocalDateTime date;
 }

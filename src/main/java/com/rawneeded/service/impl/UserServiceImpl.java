@@ -174,4 +174,17 @@ public class UserServiceImpl implements IUserService {
         }
     }
 
+    @Override
+    public UserResponseDto findById(String id) {
+        try{
+            log.info("Start to get a user by id : {}", id);
+            User user = userRepository.findById(id)
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("not.found")));
+            return userMapper.toResponseDto(user);
+        } catch (Exception e) {
+            log.error("Failed to get a user by id : {}", id);
+            throw new AbstractException(e.getMessage());
+        }
+    }
+
 }
