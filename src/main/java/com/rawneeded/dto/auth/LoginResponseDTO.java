@@ -1,4 +1,5 @@
 package com.rawneeded.dto.auth;
+import com.rawneeded.enummeration.Category;
 import com.rawneeded.enummeration.Role;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,6 +17,8 @@ public class LoginResponseDTO {
     private String email;
     private String phoneNumber;
     private Role role;
+    private Category preferredCategory;
+
 
 
 }

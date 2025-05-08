@@ -135,6 +135,7 @@ public class UserServiceImpl implements IUserService {
                             .email(user.getEmail())
                             .token(token)
                             .role(user.getRole())
+                            .preferredCategory(user.getPreferredCategory())
                             .build();
                 }
                 throw new IllegalArgumentException(messagesUtil.getMessage("email.password.not.valid"));

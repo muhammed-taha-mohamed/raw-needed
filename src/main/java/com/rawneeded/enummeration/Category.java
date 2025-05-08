@@ -9,7 +9,7 @@ public enum Category {
     PACKAGING,
     RAW_MATERIAL,
     ANALYSIS_REQUIREMENTS,
-    BOTH
+    ALL
 }
 
 
