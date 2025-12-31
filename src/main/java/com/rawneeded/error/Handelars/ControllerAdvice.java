@@ -3,6 +3,8 @@ package com.rawneeded.error.Handelars;
 import com.rawneeded.dto.ResponsePayload;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.error.exceptions.AbstractUnauthorizedException;
+import com.rawneeded.error.exceptions.AccountInactiveException;
+import com.rawneeded.error.exceptions.PlanLimitExceededException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -48,6 +50,16 @@ public class ControllerAdvice {
     public ResponseEntity<ResponsePayload> handleUnauthorizedException(AbstractUnauthorizedException e) {
         return error(UNAUTHORIZED, e,
                 e.getMessage());
+    }
+
+    @ExceptionHandler({PlanLimitExceededException.class})
+    public ResponseEntity<ResponsePayload> handlePlanLimitExceededException(PlanLimitExceededException e) {
+        return error(BAD_REQUEST, e, e.getMessage());
+    }
+
+    @ExceptionHandler({AccountInactiveException.class})
+    public ResponseEntity<ResponsePayload> handleAccountInactiveException(AccountInactiveException e) {
+        return error(FORBIDDEN, e, e.getMessage());
     }
 
 }

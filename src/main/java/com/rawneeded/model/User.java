@@ -1,8 +1,9 @@
 package com.rawneeded.model;
 
 
-import com.rawneeded.enummeration.Category;
-import com.rawneeded.enummeration.Role;
+import com.rawneeded.enumeration.AccountStatus;
+import com.rawneeded.enumeration.LanguagePreference;
+import com.rawneeded.enumeration.Role;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -22,6 +23,7 @@ public class User {
 
     private String id;
     private String name;
+    private String fullName;
     private Role role;
     private String password;
     @Indexed(unique = true)
@@ -29,10 +31,18 @@ public class User {
     @Indexed(unique = true)
     private String phoneNumber;
     private String forgetPasswordOTP;
-    private boolean active = false;
-
+    private AccountStatus accountStatus = AccountStatus.INACTIVE;
+    private String profileImage;
+    @Builder.Default
+    private LanguagePreference languagePreference = LanguagePreference.EN;
+    
+    // For staff members, this references the owner
+    private String ownerId;
+    
     @DBRef
-    private Plan plan;
-    private List<String> accessibleScreens;
+    private SubscriptionPlan subscriptionPlan;
+    
+    // List of allowed screen IDs (for staff members)
+    private List<String> allowedScreens;
 
 }

@@ -1,7 +1,7 @@
 package com.rawneeded.jwt;
 
 import com.rawneeded.dto.auth.GenerateTokenDto;
-import com.rawneeded.enummeration.Role;
+import com.rawneeded.enumeration.Role;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;

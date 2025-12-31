@@ -5,7 +5,6 @@ import com.rawneeded.dto.product.CartItemDTO;
 import com.rawneeded.dto.user.UserResponseDto;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.model.Cart;
-import com.rawneeded.model.Product;
 import com.rawneeded.model.User;
 import com.rawneeded.repository.CartRepository;
 import com.rawneeded.service.IQuotationService;
@@ -21,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static com.rawneeded.enummeration.TemplateName.QUOTATION_TEMPLATE;
+import static com.rawneeded.enumeration.TemplateName.QUOTATION_TEMPLATE;
 
 @Service
 @AllArgsConstructor

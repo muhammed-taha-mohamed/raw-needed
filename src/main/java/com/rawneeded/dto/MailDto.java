@@ -1,6 +1,6 @@
 package com.rawneeded.dto;
 
-import com.rawneeded.enummeration.TemplateName;
+import com.rawneeded.enumeration.TemplateName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

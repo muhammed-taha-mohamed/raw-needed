@@ -1,7 +1,7 @@
 package com.rawneeded.dto.product;
 
-import com.rawneeded.enummeration.Category;
-import com.rawneeded.enummeration.SubCategory;
+import com.rawneeded.enumeration.Category;
+import com.rawneeded.enumeration.SubCategory;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

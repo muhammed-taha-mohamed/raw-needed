@@ -1,33 +1,20 @@
 package com.rawneeded.service.impl;
 
-import com.rawneeded.dto.MailDto;
 import com.rawneeded.dto.product.CartDTO;
 import com.rawneeded.dto.product.CartItemDTO;
-import com.rawneeded.dto.product.ProductResponseDTO;
-import com.rawneeded.dto.user.UserResponseDto;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.mapper.CartMapper;
 import com.rawneeded.mapper.ProductMapper;
 import com.rawneeded.model.Cart;
 import com.rawneeded.model.Product;
-import com.rawneeded.model.User;
 import com.rawneeded.repository.CartRepository;
 import com.rawneeded.repository.ProductRepository;
 import com.rawneeded.service.ICartService;
-import com.rawneeded.service.IUserService;
-import com.rawneeded.util.MessagesUtil;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import static com.rawneeded.enummeration.TemplateName.QUOTATION_TEMPLATE;
-import static com.rawneeded.enummeration.TemplateName.WELCOME_TEMPLATE;
 
 
 @Service

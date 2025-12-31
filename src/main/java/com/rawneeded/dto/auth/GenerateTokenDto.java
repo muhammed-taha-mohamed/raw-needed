@@ -1,6 +1,6 @@
 package com.rawneeded.dto.auth;
 
-import com.rawneeded.enummeration.Role;
+import com.rawneeded.enumeration.Role;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

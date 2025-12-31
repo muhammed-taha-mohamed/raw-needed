@@ -5,7 +5,7 @@ import java.util.Random;
 public  class OtpUtil {
 
     public static String generateOTP() {
-            return String.format("%04d", new Random().nextInt(10000));
+            return String.format("%06d", new Random().nextInt(1000000));
     }
 
 
