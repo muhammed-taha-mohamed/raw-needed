@@ -33,7 +33,7 @@ public class User {
     private String forgetPasswordOTP;
     private AccountStatus accountStatus = AccountStatus.INACTIVE;
     private String profileImage;
-    @Builder.Default
+
     private LanguagePreference languagePreference = LanguagePreference.EN;
     
     // For staff members, this references the owner
@@ -42,6 +42,12 @@ public class User {
     @DBRef
     private SubscriptionPlan subscriptionPlan;
     
+    @DBRef
+    private Category category;
+
+    @DBRef
+    private List<SubCategory> subCategories;
+
     // List of allowed screen IDs (for staff members)
     private List<String> allowedScreens;
 

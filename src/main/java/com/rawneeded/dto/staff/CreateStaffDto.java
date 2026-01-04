@@ -17,7 +17,5 @@ public class CreateStaffDto {
     private String email;
     private String phoneNumber;
     private String password;
-    private Role role;
-    private String ownerId;
-    private List<String> allowedScreenIds; // List of screen IDs to assign
+    private List<String> allowedScreenIds;
 }

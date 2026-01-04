@@ -1,24 +1,20 @@
 package com.rawneeded.dto.auth;
-import com.rawneeded.enumeration.Category;
+import com.rawneeded.dto.category.CategoryResponseDto;
+import com.rawneeded.dto.category.SubCategoryResponseDto;
+import com.rawneeded.dto.user.UserResponseDto;
 import com.rawneeded.enumeration.Role;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
 @Builder
 public class LoginResponseDTO {
-    private String userId;
     private String token;
-    private String name;
-    private String email;
-    private String phoneNumber;
-    private Role role;
-    private Category preferredCategory;
-
-
-
+    private UserResponseDto userInfo;
 }

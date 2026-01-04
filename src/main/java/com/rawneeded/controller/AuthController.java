@@ -1,6 +1,8 @@
 package com.rawneeded.controller;
 
 import com.rawneeded.dto.ResponsePayload;
+import com.rawneeded.dto.auth.ForgetPasswordDTO;
+import com.rawneeded.dto.auth.ForgotPasswordRequestDto;
 import com.rawneeded.dto.auth.LoginDTO;
 import com.rawneeded.dto.user.CreateUserDto;
 import com.rawneeded.service.IUserService;
@@ -45,6 +47,34 @@ public class AuthController {
                         "data", userService.login(dto)))
                 .build()
         );
+    }
+
+
+    @PostMapping("/send-forgot-password-otp")
+    @Operation(summary = "Send OTP for password reset",
+            description = "Send a 6-digit OTP to the user's email for password reset")
+    public ResponseEntity<ResponsePayload> sendResetPasswordOTP(@RequestBody ForgotPasswordRequestDto requestDto) {
+        userService.sendResetPasswordOTP(requestDto);
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of(
+                        "success", true,
+                        "message", "OTP sent successfully to your email"))
+                .build());
+    }
+
+    @PostMapping("/update-password-by-otp")
+    @Operation(summary = "Update password by OTP",
+            description = "Update the user's password using the provided OTP")
+    public ResponseEntity<ResponsePayload> updatePasswordByOTP(
+            @RequestBody ForgetPasswordDTO forgetPasswordDTO) {
+        Boolean isValid = userService.updatePasswordByOTP(forgetPasswordDTO);
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of(
+                        "success", isValid,
+                        "message", isValid ? "OTP verified successfully" : "Invalid OTP"))
+                .build());
     }
 
 

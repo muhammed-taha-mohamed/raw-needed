@@ -1,7 +1,7 @@
 package com.rawneeded.dto.product;
 
-import com.rawneeded.enumeration.Category;
-import com.rawneeded.enumeration.SubCategory;
+import com.rawneeded.dto.category.CategoryResponseDto;
+import com.rawneeded.dto.category.SubCategoryResponseDto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,6 +20,6 @@ public class ProductResponseDTO {
     private String contactPersonName;
     private String contactPersonPhoneNumber;
     private boolean inStock;
-    private Category category;
-    private SubCategory subCategory;
+    private CategoryResponseDto category;
+    private SubCategoryResponseDto subCategory;
 }

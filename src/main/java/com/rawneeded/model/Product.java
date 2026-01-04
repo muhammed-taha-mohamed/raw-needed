@@ -1,8 +1,6 @@
 package com.rawneeded.model;
 
 
-import com.rawneeded.enumeration.Category;
-import com.rawneeded.enumeration.SubCategory;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -24,7 +22,9 @@ public class Product {
     private String contactPersonName;
     private String contactPersonPhoneNumber;
     private boolean inStock;
+    @DBRef
     private Category category;
+    @DBRef
     private SubCategory subCategory;
 
 }

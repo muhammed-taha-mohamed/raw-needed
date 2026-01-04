@@ -6,8 +6,11 @@ import com.rawneeded.dto.product.ProductResponseDTO;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.jwt.JwtTokenProvider;
 import com.rawneeded.mapper.ProductMapper;
+import com.rawneeded.model.Category;
 import com.rawneeded.model.Product;
+import com.rawneeded.model.SubCategory;
 import com.rawneeded.model.User;
+import com.rawneeded.repository.CategoryRepository;
 import com.rawneeded.repository.ProductRepository;
 import com.rawneeded.service.IProductService;
 import com.rawneeded.util.MessagesUtil;
@@ -38,6 +41,7 @@ public class ProductServiceImpl implements IProductService {
     private final NotificationService notificationService;
     private final ProductMapper productMapper;
     private final MongoTemplate mongoTemplate;
+    private final CategoryRepository categoryRepository;
 
 
     @Override
@@ -98,13 +102,13 @@ public class ProductServiceImpl implements IProductService {
                 criteriaList.add(Criteria.where("supplier.$id").is(new ObjectId(filterDTO.getSupplierId())));
             }
 
-            if (filterDTO.getCategory() != null) {
-                criteriaList.add(Criteria.where("category").is(filterDTO.getCategory()));
-            }
+          // if (filterDTO.getCategory() != null) {
+          //     criteriaList.add(Criteria.where("category").is(filterDTO.getCategory()));
+          // }
 
-            if (filterDTO.getSubCategory() != null) {
-                criteriaList.add(Criteria.where("subCategory").is(filterDTO.getSubCategory()));
-            }
+          // if (filterDTO.getSubCategory() != null) {
+          //     criteriaList.add(Criteria.where("subCategory").is(filterDTO.getSubCategory()));
+          // }
 
             Query query = new Query();
             if (!criteriaList.isEmpty()) {
