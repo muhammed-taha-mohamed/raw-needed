@@ -3,7 +3,6 @@ package com.rawneeded.controller;
 import com.rawneeded.dto.ResponsePayload;
 import com.rawneeded.dto.subscription.QuotationRequestDto;
 import com.rawneeded.dto.subscription.QuotationResponseDto;
-import com.rawneeded.dto.subscription.SubscriptionPlanResponseDto;
 import com.rawneeded.jwt.JwtTokenProvider;
 import com.rawneeded.service.ISubscriptionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
 
 @AllArgsConstructor
@@ -23,32 +21,6 @@ public class SubscriptionController {
 
     private final ISubscriptionService subscriptionService;
     private final JwtTokenProvider jwtTokenProvider;
-
-    @GetMapping("/plans")
-    @Operation(summary = "Get all subscription plans",
-            description = "Retrieve all available subscription plans")
-    public ResponseEntity<ResponsePayload> getAllPlans() {
-        List<SubscriptionPlanResponseDto> plans = subscriptionService.getAllPlans();
-        return ResponseEntity.ok(ResponsePayload.builder()
-                .date(LocalDateTime.now())
-                .content(Map.of(
-                        "success", true,
-                        "data", plans))
-                .build());
-    }
-
-    @GetMapping("/plans/{planId}")
-    @Operation(summary = "Get subscription plan by ID",
-            description = "Retrieve a specific subscription plan by its ID")
-    public ResponseEntity<ResponsePayload> getPlanById(@PathVariable String planId) {
-        SubscriptionPlanResponseDto plan = subscriptionService.getPlanById(planId);
-        return ResponseEntity.ok(ResponsePayload.builder()
-                .date(LocalDateTime.now())
-                .content(Map.of(
-                        "success", true,
-                        "data", plan))
-                .build());
-    }
 
     @PostMapping("/quotations")
     @Operation(summary = "Submit a quotation",
@@ -81,6 +53,7 @@ public class SubscriptionController {
                         "data", quotation))
                 .build());
     }
+
 
     private String extractToken(String header) {
         String BEARER = "Bearer ";

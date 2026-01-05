@@ -1,10 +1,13 @@
 package com.rawneeded.model;
 
+import com.rawneeded.enumeration.BillingFrequency;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.mongodb.core.mapping.Document;
+
+import java.util.List;
 
 @Document
 @AllArgsConstructor
@@ -14,8 +17,9 @@ import org.springframework.data.mongodb.core.mapping.Document;
 public class SubscriptionPlan {
     private String id;
     private String name;
-    private double price;
-    private int userLimit;
+    private double pricePerUser;
     private String description;
+    private BillingFrequency billingFrequency;
+    private List<SpecialOffer> specialOffers;
 }
 
