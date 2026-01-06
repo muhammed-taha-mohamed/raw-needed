@@ -7,6 +7,7 @@ import com.rawneeded.mapper.UserMapper;
 import com.rawneeded.model.User;
 import com.rawneeded.repository.UserRepository;
 import com.rawneeded.service.IProfileService;
+import com.rawneeded.util.MessagesUtil;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,6 +29,7 @@ public class ProfileServiceImpl implements IProfileService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
+    private final MessagesUtil messagesUtil;
     private static final String UPLOAD_DIR = "uploads/profiles/";
 
     @Override
@@ -36,7 +38,7 @@ public class ProfileServiceImpl implements IProfileService {
             log.info("Updating profile for user: {}", userId);
             
             User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new AbstractException("User not found"));
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_NOT_FOUND")));
 
             // Update fullName
             if (dto.getFullName() != null && !dto.getFullName().trim().isEmpty()) {
@@ -65,7 +67,7 @@ public class ProfileServiceImpl implements IProfileService {
             return userMapper.toResponseDto(user);
         } catch (Exception e) {
             log.error("Error updating profile: {}", e.getMessage());
-            throw new AbstractException("Failed to update profile: " + e.getMessage());
+            throw new AbstractException(messagesUtil.getMessage("PROFILE_UPDATE_FAIL"));
         }
     }
 
@@ -74,11 +76,11 @@ public class ProfileServiceImpl implements IProfileService {
         try {
             log.info("Fetching profile for user: {}", userId);
             User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new AbstractException("User not found"));
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_NOT_FOUND")));
             return userMapper.toResponseDto(user);
         } catch (Exception e) {
             log.error("Error fetching profile: {}", e.getMessage());
-            throw new AbstractException("Failed to fetch profile: " + e.getMessage());
+            throw new AbstractException(messagesUtil.getMessage("PROFILE_FETCH_FAIL"));
         }
     }
 

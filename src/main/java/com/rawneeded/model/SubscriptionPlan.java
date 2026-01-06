@@ -21,5 +21,8 @@ public class SubscriptionPlan {
     private String description;
     private BillingFrequency billingFrequency;
     private List<SpecialOffer> specialOffers;
+
+    private boolean active = true;
+    private boolean freeTrial = false;
 }
 

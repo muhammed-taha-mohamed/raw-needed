@@ -2,6 +2,7 @@ package com.rawneeded.service.impl;
 
 import com.rawneeded.dto.MailDto;
 import com.rawneeded.error.exceptions.AbstractException;
+import com.rawneeded.util.MessagesUtil;
 import freemarker.template.Configuration;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ public class NotificationService {
 
     private final JavaMailSender javaMailSender;
     private final Configuration freemarkerConfig;
+    private final MessagesUtil messagesUtil;
 
     public void sendEmail(MailDto mailDto) {
         try {
@@ -43,7 +45,7 @@ public class NotificationService {
             log.info("Email sent successfully to: {}", mailDto.getToEmail());
         } catch (Exception e) {
             log.error("Failed to send email: {}", e.getMessage());
-            throw new AbstractException("Failed to send email: " + e.getMessage());
+            throw new AbstractException(messagesUtil.getMessage("NOTIFICATION_EMAIL_FAIL"));
         }
     }
 

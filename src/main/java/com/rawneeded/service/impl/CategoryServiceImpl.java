@@ -12,6 +12,7 @@ import com.rawneeded.model.SubCategory;
 import com.rawneeded.repository.CategoryRepository;
 import com.rawneeded.repository.SubCategoryRepository;
 import com.rawneeded.service.ICategoryService;
+import com.rawneeded.util.MessagesUtil;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,13 +29,14 @@ public class CategoryServiceImpl implements ICategoryService {
 
     private final CategoryMapper categoryMapper;
     private final SubCategoryMapper subCategoryMapper;
+    private final MessagesUtil messagesUtil;
 
     // ================= Category =================
 
     @Override
     public CategoryResponseDto createCategory(CategoryRequestDto dto) {
         if (categoryRepository.existsByNameIgnoreCase(dto.getName())) {
-            throw new AbstractException("Category already exists");
+            throw new AbstractException(messagesUtil.getMessage("CATEGORY_EXISTS"));
         }
 
         Category category = categoryMapper.toEntity(dto);
@@ -44,7 +46,7 @@ public class CategoryServiceImpl implements ICategoryService {
     @Override
     public CategoryResponseDto updateCategory(String id, CategoryRequestDto dto) {
         Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new AbstractException("Category not found"));
+                .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("CATEGORY_NOT_FOUND")));
 
         categoryMapper.update(category, dto);
         return categoryMapper.toResponseDto(categoryRepository.save(category));
@@ -53,7 +55,7 @@ public class CategoryServiceImpl implements ICategoryService {
     @Override
     public void deleteCategory(String id) {
         if (!categoryRepository.existsById(id)) {
-            throw new AbstractException("Category not found");
+            throw new AbstractException(messagesUtil.getMessage("CATEGORY_NOT_FOUND"));
         }
         categoryRepository.deleteById(id);
     }
@@ -62,7 +64,7 @@ public class CategoryServiceImpl implements ICategoryService {
     public CategoryResponseDto getCategoryById(String id) {
         return categoryRepository.findById(id)
                 .map(categoryMapper::toResponseDto)
-                .orElseThrow(() -> new AbstractException("Category not found"));
+                .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("CATEGORY_NOT_FOUND")));
     }
 
     @Override
@@ -79,12 +81,12 @@ public class CategoryServiceImpl implements ICategoryService {
     public SubCategoryResponseDto createSubCategory(SubCategoryRequestDto dto) {
 
         if (!categoryRepository.existsById(dto.getCategoryId())) {
-            throw new AbstractException("Category not found");
+            throw new AbstractException(messagesUtil.getMessage("CATEGORY_NOT_FOUND"));
         }
 
         if (subCategoryRepository.existsByNameIgnoreCaseAndCategoryId(
                 dto.getName(), dto.getCategoryId())) {
-            throw new AbstractException("SubCategory already exists in this category");
+            throw new AbstractException(messagesUtil.getMessage("SUBCATEGORY_EXISTS"));
         }
 
         SubCategory subCategory = subCategoryMapper.toEntity(dto);
@@ -94,7 +96,7 @@ public class CategoryServiceImpl implements ICategoryService {
     @Override
     public SubCategoryResponseDto updateSubCategory(String id, SubCategoryRequestDto dto) {
         SubCategory subCategory = subCategoryRepository.findById(id)
-                .orElseThrow(() -> new AbstractException("SubCategory not found"));
+                .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("SUBCATEGORY_NOT_FOUND")));
 
         subCategoryMapper.update(subCategory, dto);
         return subCategoryMapper.toResponseDto(subCategoryRepository.save(subCategory));
@@ -103,7 +105,7 @@ public class CategoryServiceImpl implements ICategoryService {
     @Override
     public void deleteSubCategory(String id) {
         if (!subCategoryRepository.existsById(id)) {
-            throw new AbstractException("SubCategory not found");
+            throw new AbstractException(messagesUtil.getMessage("SUBCATEGORY_NOT_FOUND"));
         }
         subCategoryRepository.deleteById(id);
     }
@@ -112,7 +114,7 @@ public class CategoryServiceImpl implements ICategoryService {
     public SubCategoryResponseDto getSubCategoryById(String id) {
         return subCategoryRepository.findById(id)
                 .map(subCategoryMapper::toResponseDto)
-                .orElseThrow(() -> new AbstractException("SubCategory not found"));
+                .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("SUBCATEGORY_NOT_FOUND")));
     }
 
     @Override

@@ -66,7 +66,7 @@ public class ProductServiceImpl implements IProductService {
                 productMapper.update(newProduct, dto);
                 return productMapper.toResponseDto(productRepository.save(newProduct));
             } else {
-                throw new AbstractException("Product not found");
+                throw new AbstractException(messagesUtil.getMessage("PRODUCT_NOT_FOUND"));
             }
         } catch (Exception e) {
             log.info("An error occurred while updating a product: {}", e.getMessage());

@@ -14,7 +14,6 @@ import com.rawneeded.jwt.JwtTokenProvider;
 import com.rawneeded.mapper.UserMapper;
 import com.rawneeded.model.Category;
 import com.rawneeded.model.SubCategory;
-import com.rawneeded.model.SubscriptionPlan;
 import com.rawneeded.model.User;
 import com.rawneeded.repository.CategoryRepository;
 import com.rawneeded.repository.SubCategoryRepository;
@@ -27,8 +26,6 @@ import jakarta.annotation.PostConstruct;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -66,7 +63,7 @@ public class UserServiceImpl implements IUserService {
             // ===== Preferred Category & SubCategories =====
             if (dto.getCategoryId() != null && !dto.getCategoryId().isEmpty()) {
                 Category category = categoryRepository.findById(dto.getCategoryId())
-                        .orElseThrow(() -> new AbstractException("Category not found"));
+                        .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("CATEGORY_NOT_FOUND")));
                 user.setCategory(category);
 
                 if (dto.getSubCategoryIds() != null && !dto.getSubCategoryIds().isEmpty()) {
@@ -77,7 +74,7 @@ public class UserServiceImpl implements IUserService {
                             .toList();
 
                     if (selectedSubCategories.size() != dto.getSubCategoryIds().size()) {
-                        throw new AbstractException("Some subCategories not found in the selected category");
+                        throw new AbstractException(messagesUtil.getMessage("SUBCATEGORY_SELECTED_NOT_FOUND"));
                     }
 
                     user.setSubCategories(selectedSubCategories);
@@ -91,7 +88,7 @@ public class UserServiceImpl implements IUserService {
                 notificationService.sendEmail(
                         MailDto.builder()
                                 .toEmail(dto.getEmail())
-                                .subject(messagesUtil.getMessage("welcome.email.subject"))
+                                .subject(messagesUtil.getMessage("WELCOME_EMAIL_SUBJECT"))
                                 .templateName(WELCOME_TEMPLATE)
                                 .build()
                 );
@@ -102,7 +99,7 @@ public class UserServiceImpl implements IUserService {
             return userMapper.toResponseDto(user);
 
         } catch (DuplicateKeyException e) {
-            throw new AbstractException(messagesUtil.getMessage("email.already.exists"));
+            throw new AbstractException(messagesUtil.getMessage("USER_ALREADY_EXISTS"));
         } catch (Exception e) {
             log.error("Failed to create user: {}", e.getMessage());
             throw new AbstractException(e.getMessage());
@@ -121,7 +118,7 @@ public class UserServiceImpl implements IUserService {
 
             // Validate owner exists
             User owner = userRepository.findById(ownerId)
-                    .orElseThrow(() -> new AbstractException("Owner not found"));
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("OWNER_NOT_FOUND")));
 
 
             // Create staff user
@@ -148,7 +145,7 @@ public class UserServiceImpl implements IUserService {
             throw e;
         } catch (Exception e) {
             log.error("Error creating staff member: {}", e.getMessage());
-            throw new AbstractException("Failed to create staff member: " + e.getMessage());
+            throw new AbstractException(messagesUtil.getMessage("STAFF_CREATE_FAIL"));
         }
     }
 
@@ -160,14 +157,14 @@ public class UserServiceImpl implements IUserService {
             log.info("Start updating a user: {}", userId);
 
             User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("not.found")));
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("NOT_FOUND")));
 
             userMapper.update(user, dto);
 
             // Update preferred category & subcategories
             if (dto.getCategoryId() != null) {
                 Category category = categoryRepository.findById(dto.getCategoryId())
-                        .orElseThrow(() -> new AbstractException("Category not found"));
+                        .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("CATEGORY_NOT_FOUND")));
                 user.setCategory(category);
             }
 
@@ -186,7 +183,7 @@ public class UserServiceImpl implements IUserService {
             return userMapper.toResponseDto(user);
 
         } catch (DuplicateKeyException e) {
-            throw new AbstractException(messagesUtil.getMessage("email.already.exists"));
+            throw new AbstractException(messagesUtil.getMessage("USER_ALREADY_EXISTS"));
         } catch (Exception e) {
             log.error("Failed to update user: {}", e.getMessage());
             throw new AbstractException(e.getMessage());
@@ -213,7 +210,7 @@ public class UserServiceImpl implements IUserService {
             log.info("Sending OTP to email: {}", requestDto.getEmail());
 
             User user = userRepository.findByEmailIgnoreCase(requestDto.getEmail())
-                    .orElseThrow(() -> new AbstractException("User not found with email: " + requestDto.getEmail()));
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_NOT_FOUND_EMAIL")));
 
             // Generate 6-digit OTP
             String otp = OtpUtil.generateOTP();
@@ -223,7 +220,7 @@ public class UserServiceImpl implements IUserService {
             userRepository.save(user);
 
             // Send OTP via email
-            String subject = messagesUtil.getMessage("forgot.password.email.subject");
+            String subject = messagesUtil.getMessage("FORGOT_PASSWORD_EMAIL_SUBJECT");
             new Thread(() -> {
                 notificationService.sendEmail(
                         MailDto.builder()
@@ -237,7 +234,7 @@ public class UserServiceImpl implements IUserService {
             log.info("OTP sent successfully to email: {}", requestDto.getEmail());
         } catch (Exception e) {
             log.error("Error sending OTP: {}", e.getMessage());
-            throw new AbstractException("Failed to send OTP: " + e.getMessage());
+            throw new AbstractException(messagesUtil.getMessage("OTP_SEND_FAIL"));
         }
     }
 
@@ -257,7 +254,7 @@ public class UserServiceImpl implements IUserService {
                 return true;
             }
             log.error("Failed to update password by OTP for email: {}. OTP not valid.", dto.getEmail());
-            throw new IllegalArgumentException(messagesUtil.getMessage("otp.not.valid"));
+            throw new IllegalArgumentException(messagesUtil.getMessage("OTP_NOT_VALID"));
         } catch (Exception e) {
             log.error("Error occurred while updating password by OTP for email {}: {}", dto.getEmail(), e.getMessage());
             throw new AbstractException(e.getMessage());
@@ -269,7 +266,7 @@ public class UserServiceImpl implements IUserService {
     public UserResponseDto findById(String userId) {
         try {
             User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("not.found")));
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("NOT_FOUND")));
             return userMapper.toResponseDto(user);
         } catch (Exception e) {
             log.error("Failed to get user: {}", e.getMessage());
@@ -281,10 +278,10 @@ public class UserServiceImpl implements IUserService {
     @Override
     public LoginResponseDTO login(LoginDTO dto) {
         User user = userRepository.findByEmailIgnoreCase(dto.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException(messagesUtil.getMessage("email.password.not.valid")));
+                .orElseThrow(() -> new IllegalArgumentException(messagesUtil.getMessage("EMAIL_PASSWORD_NOT_VALID")));
 
         if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
-            throw new IllegalArgumentException(messagesUtil.getMessage("email.password.not.valid"));
+            throw new IllegalArgumentException(messagesUtil.getMessage("EMAIL_PASSWORD_NOT_VALID"));
         }
 
         String token = tokenProvider.generateToken(

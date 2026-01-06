@@ -7,20 +7,23 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import jakarta.validation.constraints.Positive;
 import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
 @Builder
-public class SubscriptionPlanResponseDto {
-    private String id;
+public class UpdatePlanRequestDto {
     private String name;
-    private double pricePerUser;
+    
+    @Positive(message = "Price per user must be positive")
+    private Double pricePerUser;
+    
     private String description;
+    
     private BillingFrequency billingFrequency;
+    
     private List<SpecialOffer> specialOffers;
-    private boolean active;
-    private boolean freeTrial;
-}
 
+}

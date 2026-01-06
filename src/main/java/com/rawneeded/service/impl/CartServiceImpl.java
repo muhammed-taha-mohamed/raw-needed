@@ -10,6 +10,7 @@ import com.rawneeded.model.Product;
 import com.rawneeded.repository.CartRepository;
 import com.rawneeded.repository.ProductRepository;
 import com.rawneeded.service.ICartService;
+import com.rawneeded.util.MessagesUtil;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ public class CartServiceImpl implements ICartService {
     private final CartMapper cartMapper;
     private final ProductMapper productMapper;
     private final ProductRepository productRepository;
+    private final MessagesUtil messagesUtil;
 
 
     @Override
@@ -86,7 +88,7 @@ public class CartServiceImpl implements ICartService {
             cart.setItems(cart.getItems() == null ? new ArrayList<>() : cart.getItems());
 
             Product product = productRepository.findById(productId)
-                    .orElseThrow(() -> new AbstractException("Product not found"));
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("PRODUCT_NOT_FOUND")));
 
 
             CartItemDTO newItem = productMapper.toCartItemDto(product);

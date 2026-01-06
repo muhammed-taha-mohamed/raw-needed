@@ -46,7 +46,7 @@ public class QuotationServiceImpl implements IQuotationService {
                     .filter(product -> product.getSupplierId() != null)
                     .collect(Collectors.groupingBy(CartItemDTO::getSupplierId));
 
-            String subject = messagesUtil.getMessage("new.quotation.subject");
+            String subject = messagesUtil.getMessage("NEW_QUOTATION_SUBJECT");
 
             for (Map.Entry<String, List<CartItemDTO>> entry : productsGroupedBySupplier.entrySet()) {
                 UserResponseDto supplier = userService.findById(entry.getKey());
