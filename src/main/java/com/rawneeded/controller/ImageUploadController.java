@@ -30,7 +30,7 @@ public class ImageUploadController {
         return ResponseEntity.ok(ResponsePayload.builder()
                 .date(LocalDateTime.now())
                 .content(Map.of(
-                        "message", messagesUtil.getMessage("image.upload"),
+                        "message", "Image uploaded successfully",
                         "data", imagesService.uploadImage(file)))
                 .build()
         );

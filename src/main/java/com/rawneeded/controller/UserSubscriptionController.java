@@ -42,7 +42,7 @@ public class UserSubscriptionController {
     @Operation(summary = "Submit a user subscription",
             description = "Submit a user subscription for subscription activation")
     public ResponseEntity<ResponsePayload> submitUserSubscription(
-            @ModelAttribute UserSubscriptionRequestDto requestDto,
+            @RequestBody UserSubscriptionRequestDto requestDto,
             HttpServletRequest request) {
 
         UserSubscriptionResponseDto userSubscription = userSubscriptionService.submitUserSubscription(requestDto);

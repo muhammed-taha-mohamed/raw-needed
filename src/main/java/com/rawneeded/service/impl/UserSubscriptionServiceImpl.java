@@ -127,7 +127,7 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
                             .build());
 
             // Save file
-            String filePath = saveSubscriptionFile(requestDto.getSubscriptionFile());
+            String filePath = requestDto.getSubscriptionFile();
 
             UserSubscription userSubscription = UserSubscription.builder()
                     .user(user)
@@ -232,7 +232,7 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
                 }
 
                 // Save new file
-                String filePath = saveSubscriptionFile(requestDto.getSubscriptionFile());
+                String filePath = requestDto.getSubscriptionFile();
                 userSubscription.setFilePath(filePath);
             }
 

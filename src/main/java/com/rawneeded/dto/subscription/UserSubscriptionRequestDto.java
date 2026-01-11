@@ -13,5 +13,5 @@ import org.springframework.web.multipart.MultipartFile;
 public class UserSubscriptionRequestDto {
     private String planId;
     private int numberOfUsers;
-    private MultipartFile subscriptionFile;
+    private String subscriptionFile;
 }
