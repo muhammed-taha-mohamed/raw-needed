@@ -25,4 +25,6 @@ public class UserResponseDto {
     private CategoryResponseDto category;
     private List<SubCategoryResponseDto> subCategories;
     private UserSubscriptionResponseDto subscription;
+    private List<String> allowedScreens;
+    private String profileImage;
 }
