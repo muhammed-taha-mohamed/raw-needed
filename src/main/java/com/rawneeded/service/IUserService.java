@@ -8,24 +8,27 @@ import com.rawneeded.dto.staff.CreateStaffDto;
 import com.rawneeded.dto.user.CreateUserDto;
 import com.rawneeded.dto.user.UserRequestDto;
 import com.rawneeded.dto.user.UserResponseDto;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface IUserService {
 
 
+    /* =========== AUTH =========== */
     UserResponseDto register(CreateUserDto dto);
-
-    UserResponseDto createStafUser(CreateStaffDto dto);
-
-    UserResponseDto update(String id, UserRequestDto dto);
-
-    void delete(String id);
-
     LoginResponseDTO login(LoginDTO loginDTO);
+    void sendResetPasswordOTP(ForgotPasswordRequestDto requestDto);
+    Boolean updatePasswordByOTP(ForgetPasswordDTO dto);
 
+
+
+    /* =========== USER MANAGEMENT =========== */
+    UserResponseDto createStaffUser(CreateStaffDto dto);
+    Page<UserResponseDto> filterByOwnerId(String ownerId, Pageable pageable);
+    UserResponseDto update(String id, UserRequestDto dto);
+    void delete(String id);
     UserResponseDto findById(String id);
 
 
-    void sendResetPasswordOTP(ForgotPasswordRequestDto requestDto);
 
-    Boolean updatePasswordByOTP(ForgetPasswordDTO dto);
 }

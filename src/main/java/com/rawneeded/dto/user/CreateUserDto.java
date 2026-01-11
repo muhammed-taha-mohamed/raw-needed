@@ -15,8 +15,8 @@ import java.util.List;
 @Data
 @Builder
 public class CreateUserDto {
+
     private String name;
-    private String fullName;
     private Role role;
     @NotEmpty(message = "Password is required")
     private String password;
@@ -24,4 +24,5 @@ public class CreateUserDto {
     private String phoneNumber;
     private String categoryId;
     private List<String> subCategoryIds;
+    private String profileImage;
 }

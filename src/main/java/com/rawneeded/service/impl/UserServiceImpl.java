@@ -12,20 +12,22 @@ import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.error.exceptions.PlanLimitExceededException;
 import com.rawneeded.jwt.JwtTokenProvider;
 import com.rawneeded.mapper.UserMapper;
-import com.rawneeded.model.Category;
-import com.rawneeded.model.SubCategory;
-import com.rawneeded.model.User;
+import com.rawneeded.mapper.UserSubscriptionMapper;
+import com.rawneeded.model.*;
 import com.rawneeded.repository.CategoryRepository;
 import com.rawneeded.repository.SubCategoryRepository;
 import com.rawneeded.repository.UserRepository;
 import com.rawneeded.service.ICartService;
 import com.rawneeded.service.IUserService;
+import com.rawneeded.service.IUserSubscriptionService;
 import com.rawneeded.util.MessagesUtil;
 import com.rawneeded.util.OtpUtil;
 import jakarta.annotation.PostConstruct;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -49,8 +51,11 @@ public class UserServiceImpl implements IUserService {
     private final NotificationService notificationService;
     private final ICartService cartService;
     private final MessagesUtil messagesUtil;
+    private final IUserSubscriptionService subscriptionService;
+    private final UserSubscriptionMapper subscriptionMapper;
 
-    // ================= Register User =================
+    // ================= AUTH METHODS ================= //
+
     @Override
     public UserResponseDto register(CreateUserDto dto) {
         try {
@@ -58,7 +63,7 @@ public class UserServiceImpl implements IUserService {
 
             User user = userMapper.toEntity(dto);
             user.setPassword(passwordEncoder.encode(dto.getPassword()));
-
+            user.setAccountStatus(AccountStatus.ACTIVE);
 
             // ===== Preferred Category & SubCategories =====
             if (dto.getCategoryId() != null && !dto.getCategoryId().isEmpty()) {
@@ -81,6 +86,7 @@ public class UserServiceImpl implements IUserService {
                 }
             }
 
+            user = subscriptionService.putUserOnFreeTrail(user);
             user = userRepository.save(user);
 
             // Send welcome email asynchronously
@@ -106,9 +112,96 @@ public class UserServiceImpl implements IUserService {
         }
     }
 
+    @Override
+    public LoginResponseDTO login(LoginDTO dto) {
+        User user = userRepository.findByEmailIgnoreCase(dto.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException(messagesUtil.getMessage("EMAIL_PASSWORD_NOT_VALID")));
+
+        if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
+            throw new IllegalArgumentException(messagesUtil.getMessage("EMAIL_PASSWORD_NOT_VALID"));
+        }
+
+        String token = tokenProvider.generateToken(
+                GenerateTokenDto.builder()
+                        .id(user.getId())
+                        .name(user.getName())
+                        .email(user.getEmail())
+                        .role(user.getRole())
+                        .build());
+
+        UserResponseDto userInfo = userMapper.toResponseDto(user);
+
+        if (user.getSubscription() != null) {
+            userInfo.setSubscription(subscriptionMapper.toResponseDto(user.getSubscription()));
+        }
+
+        return LoginResponseDTO.builder()
+                .token(token)
+                .userInfo(userInfo)
+                .build();
+    }
 
     @Override
-    public UserResponseDto createStafUser(CreateStaffDto dto) {
+    public void sendResetPasswordOTP(ForgotPasswordRequestDto requestDto) {
+        try {
+            log.info("Sending OTP to email: {}", requestDto.getEmail());
+
+            User user = userRepository.findByEmailIgnoreCase(requestDto.getEmail())
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_NOT_FOUND_EMAIL")));
+
+            // Generate 6-digit OTP
+            String otp = OtpUtil.generateOTP();
+
+            // Save OTP in user entity (database)
+            user.setForgetPasswordOTP(otp);
+            userRepository.save(user);
+
+            // Send OTP via email
+            String subject = messagesUtil.getMessage("FORGOT_PASSWORD_EMAIL_SUBJECT");
+            new Thread(() -> {
+                notificationService.sendEmail(
+                        MailDto.builder()
+                                .toEmail(requestDto.getEmail())
+                                .subject(subject)
+                                .templateName(FORGET_PASSWORD_OTP)
+                                .build()
+                );
+            }).start();
+
+            log.info("OTP sent successfully to email: {}", requestDto.getEmail());
+        } catch (Exception e) {
+            log.error("Error sending OTP: {}", e.getMessage());
+            throw new AbstractException(messagesUtil.getMessage("OTP_SEND_FAIL"));
+        }
+    }
+
+    @Override
+    public Boolean updatePasswordByOTP(ForgetPasswordDTO dto) {
+        try {
+            log.info("Updating password by OTP for email: {}", dto.getEmail());
+            Optional<User> userOptional = userRepository.findByEmailAndForgetPasswordOTP(dto.getEmail(), dto.getOtp());
+            // If the user is found, update the password and save the user
+            if (userOptional.isPresent()) {
+                User user = userOptional.get();
+                user.setForgetPasswordOTP(null);
+                user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+                userRepository.save(user);
+                log.info("Password updated successfully for user: {}", user.getId());
+                return true;
+            }
+            log.error("Failed to update password by OTP for email: {}. OTP not valid.", dto.getEmail());
+            throw new IllegalArgumentException(messagesUtil.getMessage("OTP_NOT_VALID"));
+        } catch (Exception e) {
+            log.error("Error occurred while updating password by OTP for email {}: {}", dto.getEmail(), e.getMessage());
+            throw new AbstractException(e.getMessage());
+        }
+    }
+
+
+    /* =========== USER MANAGEMENT =========== */
+
+    @Override
+    public UserResponseDto createStaffUser(CreateStaffDto dto) {
         try {
             log.info("Creating staff member: {}", dto.getEmail());
 
@@ -120,6 +213,8 @@ public class UserServiceImpl implements IUserService {
             User owner = userRepository.findById(ownerId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("OWNER_NOT_FOUND")));
 
+            UserSubscription ownerSubscription = owner.getSubscription();
+            subscriptionService.updateUsedUsers(ownerSubscription.getId(), true);
 
             // Create staff user
             User staff = User.builder()
@@ -134,6 +229,7 @@ public class UserServiceImpl implements IUserService {
                     .allowedScreens(dto.getAllowedScreenIds())
                     .category(owner.getCategory())
                     .subCategories(owner.getSubCategories())
+                    .subscription(ownerSubscription)
                     .build();
 
 
@@ -141,16 +237,22 @@ public class UserServiceImpl implements IUserService {
 
             log.info("Staff member created successfully: {}", staff.getId());
             return userMapper.toResponseDto(staff);
-        } catch (PlanLimitExceededException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Error creating staff member: {}", e.getMessage());
-            throw new AbstractException(messagesUtil.getMessage("STAFF_CREATE_FAIL"));
+        } catch ( Exception e) {
+            throw new AbstractException(e.getMessage());
         }
     }
 
+    @Override
+    public Page<UserResponseDto> filterByOwnerId(String ownerId, Pageable pageable) {
+        try {
+            return userRepository.findAllByOwnerId(ownerId, pageable)
+                    .map(userMapper::toResponseDto);
+        } catch (Exception e) {
+            log.error("Failed to get users: {}", e.getMessage());
+            throw new AbstractException(e.getMessage());
+        }
+    }
 
-    // ================= Update User =================
     @Override
     public UserResponseDto update(String userId, UserRequestDto dto) {
         try {
@@ -190,7 +292,6 @@ public class UserServiceImpl implements IUserService {
         }
     }
 
-    // ================= Delete User =================
     @Override
     public void delete(String userId) {
         try {
@@ -202,66 +303,6 @@ public class UserServiceImpl implements IUserService {
         }
     }
 
-
-
-    @Override
-    public void sendResetPasswordOTP(ForgotPasswordRequestDto requestDto) {
-        try {
-            log.info("Sending OTP to email: {}", requestDto.getEmail());
-
-            User user = userRepository.findByEmailIgnoreCase(requestDto.getEmail())
-                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_NOT_FOUND_EMAIL")));
-
-            // Generate 6-digit OTP
-            String otp = OtpUtil.generateOTP();
-
-            // Save OTP in user entity (database)
-            user.setForgetPasswordOTP(otp);
-            userRepository.save(user);
-
-            // Send OTP via email
-            String subject = messagesUtil.getMessage("FORGOT_PASSWORD_EMAIL_SUBJECT");
-            new Thread(() -> {
-                notificationService.sendEmail(
-                        MailDto.builder()
-                                .toEmail(requestDto.getEmail())
-                                .subject(subject)
-                                .templateName(FORGET_PASSWORD_OTP)
-                                .build()
-                );
-            }).start();
-
-            log.info("OTP sent successfully to email: {}", requestDto.getEmail());
-        } catch (Exception e) {
-            log.error("Error sending OTP: {}", e.getMessage());
-            throw new AbstractException(messagesUtil.getMessage("OTP_SEND_FAIL"));
-        }
-    }
-
-
-    @Override
-    public Boolean updatePasswordByOTP(ForgetPasswordDTO dto) {
-        try {
-            log.info("Updating password by OTP for email: {}", dto.getEmail());
-            Optional<User> userOptional = userRepository.findByEmailAndForgetPasswordOTP(dto.getEmail(), dto.getOtp());
-            // If the user is found, update the password and save the user
-            if (userOptional.isPresent()) {
-                User user = userOptional.get();
-                user.setForgetPasswordOTP(null);
-                user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
-                userRepository.save(user);
-                log.info("Password updated successfully for user: {}", user.getId());
-                return true;
-            }
-            log.error("Failed to update password by OTP for email: {}. OTP not valid.", dto.getEmail());
-            throw new IllegalArgumentException(messagesUtil.getMessage("OTP_NOT_VALID"));
-        } catch (Exception e) {
-            log.error("Error occurred while updating password by OTP for email {}: {}", dto.getEmail(), e.getMessage());
-            throw new AbstractException(e.getMessage());
-        }
-    }
-
-    // ================= Find User =================
     @Override
     public UserResponseDto findById(String userId) {
         try {
@@ -274,30 +315,6 @@ public class UserServiceImpl implements IUserService {
         }
     }
 
-    // ================= Login =================
-    @Override
-    public LoginResponseDTO login(LoginDTO dto) {
-        User user = userRepository.findByEmailIgnoreCase(dto.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException(messagesUtil.getMessage("EMAIL_PASSWORD_NOT_VALID")));
-
-        if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
-            throw new IllegalArgumentException(messagesUtil.getMessage("EMAIL_PASSWORD_NOT_VALID"));
-        }
-
-        String token = tokenProvider.generateToken(
-                GenerateTokenDto.builder()
-                        .id(user.getId())
-                        .name(user.getName())
-                        .email(user.getEmail())
-                        .role(user.getRole())
-                        .build());
-
-        return LoginResponseDTO.builder()
-                .token(token)
-                .userInfo(userMapper.toResponseDto(user))
-                .build();
-    }
-
     @PostConstruct
     public void initSuperAdmin() {
         if (userRepository.existsByRole(Role.SUPER_ADMIN)) {
@@ -307,7 +324,6 @@ public class UserServiceImpl implements IUserService {
 
         User superAdmin = User.builder()
                 .name("Raw needed super admin")
-                .fullName("Raw needed super admin")
                 .email("admin@rawneeded.com")
                 .password(passwordEncoder.encode("admin@123"))
                 .role(Role.SUPER_ADMIN)

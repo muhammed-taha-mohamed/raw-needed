@@ -26,4 +26,6 @@ public class UserSubscriptionResponseDto {
     private String filePath;
     private UserSubscriptionStatus status;
     private LocalDateTime submissionDate;
+    private LocalDateTime subscriptionDate ;
+    private LocalDateTime expiryDate;
 }

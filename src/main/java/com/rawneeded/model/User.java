@@ -23,7 +23,6 @@ public class User {
 
     private String id;
     private String name;
-    private String fullName;
     private Role role;
     private String password;
     @Indexed(unique = true)
@@ -40,7 +39,7 @@ public class User {
     private String ownerId;
     
     @DBRef
-    private SubscriptionPlan subscriptionPlan;
+    private UserSubscription subscription;
     
     @DBRef
     private Category category;

@@ -2,10 +2,10 @@ package com.rawneeded.service.impl;
 
 import com.rawneeded.dto.subscription.CalculatePriceRequestDto;
 import com.rawneeded.dto.subscription.CalculatePriceResponseDto;
-import com.rawneeded.dto.subscription.CreateSubscriptionRequestDto;
 import com.rawneeded.dto.subscription.UserSubscriptionRequestDto;
 import com.rawneeded.dto.subscription.UserSubscriptionResponseDto;
 import com.rawneeded.enumeration.AccountStatus;
+import com.rawneeded.enumeration.BillingFrequency;
 import com.rawneeded.enumeration.UserSubscriptionStatus;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.jwt.JwtTokenProvider;
@@ -24,7 +24,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -39,6 +38,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static com.rawneeded.enumeration.UserSubscriptionStatus.APPROVED;
 import static com.rawneeded.enumeration.UserSubscriptionStatus.PENDING;
 
 @Slf4j
@@ -154,167 +154,41 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
         }
     }
 
-    @Override
-    public UserSubscriptionResponseDto getUserSubscriptionByOwnerId(String ownerId) {
-        try {
-            log.info("Fetching user subscription for owner: {}", ownerId);
-            UserSubscription userSubscription = userSubscriptionRepository.findByUserId(ownerId)
-                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_SUBSCRIPTION_NOT_FOUND")));
-            return subscriptionMapper.toResponseDto(userSubscription);
-        } catch (Exception e) {
-            log.error("Error fetching user subscription: {}", e.getMessage());
-            throw new AbstractException(messagesUtil.getMessage("USER_SUBSCRIPTION_FETCH_FAIL"));
-        }
-    }
-
-    @Override
-    public UserSubscriptionResponseDto getUserSubscriptionById(String id) {
-        try {
-            log.info("Fetching user subscription with id: {}", id);
-            UserSubscription userSubscription = userSubscriptionRepository.findById(id)
-                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_SUBSCRIPTION_NOT_FOUND")));
-            return subscriptionMapper.toResponseDto(userSubscription);
-        } catch (Exception e) {
-            log.error("Error fetching user subscription: {}", e.getMessage());
-            throw new AbstractException(messagesUtil.getMessage("USER_SUBSCRIPTION_FETCH_FAIL"));
-        }
-    }
-
-    @Override
-    public UserSubscriptionResponseDto updateUserSubscription(String id, UserSubscriptionRequestDto requestDto) {
-        try {
-            log.info("Updating user subscription with id: {}", id);
-
-            UserSubscription userSubscription = userSubscriptionRepository.findById(id)
-                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_SUBSCRIPTION_NOT_FOUND")));
-
-            boolean planChanged = false;
-            boolean numberOfUsersChanged = false;
-
-            // Update plan if provided
-            if (requestDto.getPlanId() != null && !requestDto.getPlanId().equals(userSubscription.getPlanId())) {
-                SubscriptionPlan plan = subscriptionPlanRepository.findById(requestDto.getPlanId())
-                        .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_SUB_PLAN_NOT_FOUND")));
-                userSubscription.setPlan(plan);
-                userSubscription.setPlanId(plan.getId());
-                planChanged = true;
-            }
-
-            // Update number of users if provided
-            if (requestDto.getNumberOfUsers() > 0 && requestDto.getNumberOfUsers() != userSubscription.getNumberOfUsers()) {
-                userSubscription.setNumberOfUsers(requestDto.getNumberOfUsers());
-                numberOfUsersChanged = true;
-            }
-
-            // Recalculate price if plan or number of users changed
-            if (planChanged || numberOfUsersChanged) {
-                SubscriptionPlan plan = userSubscription.getPlan();
-                int numberOfUsers = userSubscription.getNumberOfUsers();
-                double total = plan.getPricePerUser() * numberOfUsers;
-                double discount = calculateDiscount(plan, numberOfUsers);
-                double finalPrice = total - discount;
-
-                userSubscription.setTotal(total);
-                userSubscription.setDiscount(discount);
-                userSubscription.setFinalPrice(finalPrice);
-                userSubscription.setRemainingUsers(numberOfUsers - userSubscription.getUsedUsers());
-            }
-
-            // Update file if provided
-            if (requestDto.getSubscriptionFile() != null && !requestDto.getSubscriptionFile().isEmpty()) {
-                // Delete old file if exists
-                if (userSubscription.getFilePath() != null) {
-                    try {
-                        Files.deleteIfExists(Paths.get(userSubscription.getFilePath()));
-                    } catch (IOException e) {
-                        log.warn("Failed to delete old file: {}", e.getMessage());
-                    }
-                }
-
-                // Save new file
-                String filePath = requestDto.getSubscriptionFile();
-                userSubscription.setFilePath(filePath);
-            }
-
-            userSubscription = userSubscriptionRepository.save(userSubscription);
-
-            return subscriptionMapper.toResponseDto(userSubscription);
-        } catch (Exception e) {
-            log.error("Error updating user subscription: {}", e.getMessage());
-            throw new AbstractException(messagesUtil.getMessage("USER_SUBSCRIPTION_UPDATE_FAIL"));
-        }
-    }
-
-    @Override
-    public void deleteUserSubscription(String id) {
-        try {
-            log.info("Deleting user subscription with id: {}", id);
-
-            UserSubscription userSubscription = userSubscriptionRepository.findById(id)
-                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_SUBSCRIPTION_NOT_FOUND")));
-
-            // Delete file if exists
-            if (userSubscription.getFilePath() != null) {
-                try {
-                    Files.deleteIfExists(Paths.get(userSubscription.getFilePath()));
-                } catch (IOException e) {
-                    log.warn("Failed to delete file: {}", e.getMessage());
-                }
-            }
-
-            userSubscriptionRepository.delete(userSubscription);
-            log.info("User subscription deleted successfully");
-        } catch (Exception e) {
-            log.error("Error deleting user subscription: {}", e.getMessage());
-            throw new AbstractException(messagesUtil.getMessage("USER_SUBSCRIPTION_DELETE_FAIL"));
-        }
-    }
 
 
     @Override
-    public UserSubscriptionResponseDto createSubscription(String userId, CreateSubscriptionRequestDto requestDto) {
-        try {
-            log.info("Creating subscription for user: {} with plan: {} and {} users",
-                    userId, requestDto.getPlanId(), requestDto.getNumberOfUsers());
-
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_SUBSCRIPTION_USER_NOT_FOUND")));
-
-            SubscriptionPlan plan = subscriptionPlanRepository.findById(requestDto.getPlanId())
+    public User putUserOnFreeTrail(User user) {
+        try{
+            log.info("Putting user on free trail: {}", user.getId());
+            SubscriptionPlan freePlan = subscriptionPlanRepository.findByFreeTrialTrue()
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_SUB_PLAN_NOT_FOUND")));
-
-            // Check if user already has an active subscription
-            Optional<UserSubscription> existingSubscription = userSubscriptionRepository.findByUserId(userId);
-            if (existingSubscription.isPresent()) {
-                throw new AbstractException(messagesUtil.getMessage("SUBSCRIPTION_ACTIVE_EXISTS"));
-            }
-
-            // Calculate pricing with offers
-            double total = plan.getPricePerUser() * requestDto.getNumberOfUsers();
-            double discount = calculateDiscount(plan, requestDto.getNumberOfUsers());
-            double finalPrice = total - discount;
-
-            UserSubscription subscription = UserSubscription.builder()
+            UserSubscription userSubscription = UserSubscription.builder()
                     .user(user)
-                    .userId(userId)
-                    .plan(plan)
-                    .planId(plan.getId())
-                    .numberOfUsers(requestDto.getNumberOfUsers())
-                    .usedUsers(0)
-                    .remainingUsers(requestDto.getNumberOfUsers())
-                    .total(total)
-                    .discount(discount)
-                    .finalPrice(finalPrice)
+                    .userId(user.getId())
+                    .plan(freePlan)
+                    .planId(freePlan.getId())
+                    .numberOfUsers(1)
+                    .usedUsers(1)
+                    .remainingUsers(0)
+                    .total(0.0)
+                    .discount(0.0)
+                    .finalPrice(0.0)
+                    .status(APPROVED)
+                    .subscriptionDate(LocalDateTime.now())
+                    .subscriptionDate(LocalDateTime.now())
+                    .expiryDate(LocalDateTime.now().plusMonths(1))
                     .build();
 
-            subscription = userSubscriptionRepository.save(subscription);
-
-            return subscriptionMapper.toResponseDto(subscription);
+            userSubscription = userSubscriptionRepository.save(userSubscription);
+            user.setSubscription(userSubscription);
+            user.setAccountStatus(AccountStatus.ACTIVE);
+            return user;
         } catch (Exception e) {
-            log.error("Error creating subscription: {}", e.getMessage());
-            throw new AbstractException(messagesUtil.getMessage("SUBSCRIPTION_CREATE_FAIL"));
+            log.info("Error putting user on free trail: {}", e.getMessage());
+            return user;
         }
     }
+
 
     @Override
     public UserSubscriptionResponseDto getUserSubscription() {
@@ -332,18 +206,20 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
     }
 
     @Override
-    public UserSubscriptionResponseDto updateUsedUsers(String subscriptionId, int usedUsers) {
+    public UserSubscriptionResponseDto updateUsedUsers(String subscriptionId, boolean add) {
         try {
-            log.info("Updating used users for subscription: {} to {}", subscriptionId, usedUsers);
+
             UserSubscription subscription = userSubscriptionRepository.findById(subscriptionId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("SUBSCRIPTION_NOT_FOUND")));
 
-            if (usedUsers > subscription.getNumberOfUsers()) {
+            int newUsedUsers = add ? subscription.getUsedUsers() + 1 : subscription.getUsedUsers() - 1;
+
+            if (newUsedUsers > subscription.getNumberOfUsers()) {
                 throw new AbstractException(messagesUtil.getMessage("SUBSCRIPTION_USED_USERS_EXCEED"));
             }
 
-            subscription.setUsedUsers(usedUsers);
-            subscription.setRemainingUsers(subscription.getNumberOfUsers() - usedUsers);
+            subscription.setUsedUsers(newUsedUsers);
+            subscription.setRemainingUsers(subscription.getNumberOfUsers() - newUsedUsers);
 
             subscription = userSubscriptionRepository.save(subscription);
 
@@ -382,24 +258,37 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
 
             // Update user subscription status
             userSubscription.setStatus(UserSubscriptionStatus.APPROVED);
+
+            // Set subscription date and expiry date
+
+            BillingFrequency billingFrequency = userSubscription.getPlan().getBillingFrequency();
+            LocalDateTime expiryDate = billingFrequency.equals(BillingFrequency.MONTHLY) ? LocalDateTime.now().plusMonths(1) :
+                    billingFrequency.equals(BillingFrequency.QUARTERLY) ? LocalDateTime.now().plusMonths(3) :
+                            LocalDateTime.now().plusYears(1);
+
+            userSubscription.setSubscriptionDate(LocalDateTime.now());
+            userSubscription.setExpiryDate(expiryDate);
             userSubscription = userSubscriptionRepository.save(userSubscription);
 
-            // Get the user
-            User user = userRepository.findById(userSubscription.getUserId())
-                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_NOT_FOUND")));
+            UserSubscription finalUserSubscription = userSubscription;
+            new Thread(() -> {
+                // Get the user
+                User user = userRepository.findById(finalUserSubscription.getUserId())
+                        .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_NOT_FOUND")));
 
-            // Update user's account status to ACTIVE
-            user.setAccountStatus(AccountStatus.ACTIVE);
+                // Update user's account status to ACTIVE
+                user.setAccountStatus(AccountStatus.ACTIVE);
 
-            // Link user to the selected subscription plan
-            if (userSubscription.getPlan() != null) {
-                user.setSubscriptionPlan(userSubscription.getPlan());
-            }
+                // Link user to the selected subscription
+                if (user.getSubscription() == null) {
+                    user.setSubscription(finalUserSubscription);
+                }
 
-            userRepository.save(user);
+                userRepository.save(user);
 
-            log.info("User subscription approved successfully. User {} activated with plan {}",
-                    user.getId(), userSubscription.getPlanId());
+                log.info("User subscription approved successfully. User {} activated with plan {}",
+                        user.getId(), finalUserSubscription.getPlanId());
+            }).start();
 
             return subscriptionMapper.toResponseDto(userSubscription);
         } catch (Exception e) {

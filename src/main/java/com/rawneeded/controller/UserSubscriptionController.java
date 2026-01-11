@@ -24,7 +24,6 @@ import java.util.Map;
 public class UserSubscriptionController {
 
     private final IUserSubscriptionService userSubscriptionService;
-    private final JwtTokenProvider jwtTokenProvider;
 
     @PostMapping("/calculate-price")
     @Operation(summary = "Calculate subscription price",
@@ -54,19 +53,6 @@ public class UserSubscriptionController {
                 .build());
     }
 
-
-    @DeleteMapping("/{id}")
-    @Operation(summary = "Delete user subscription",
-            description = "Delete a user subscription by its ID")
-    public ResponseEntity<ResponsePayload> deleteUserSubscription(@PathVariable String id) {
-        userSubscriptionService.deleteUserSubscription(id);
-        return ResponseEntity.ok(ResponsePayload.builder()
-                .date(LocalDateTime.now())
-                .content(Map.of(
-                        "success", true,
-                        "message", "User subscription deleted successfully."))
-                .build());
-    }
 
 
     @GetMapping("/my-subscription")

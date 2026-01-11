@@ -36,10 +36,3 @@ public class ImagesService {
     }
 }
 
-
-
-// Refund jar
-// branch footer 2 in invoice
-// فاتورة المبيعات اشعار دائن
-// share refund: simplified credit
-
