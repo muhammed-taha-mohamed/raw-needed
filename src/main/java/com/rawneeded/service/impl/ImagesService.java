@@ -23,7 +23,7 @@ public class ImagesService {
             Map<?, ?> result = cloudinary.uploader().upload(
                     file.getBytes(),
                     Map.of(
-                            "folder", "trust-app-images",
+                            "folder", "raw-needed-app-images",
                             "resource_type", "image"
                     )
             );

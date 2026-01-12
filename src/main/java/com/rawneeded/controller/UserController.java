@@ -113,4 +113,20 @@ public class UserController {
                 .build()
         );
     }
+
+
+    @GetMapping("/suppliers")
+    @Operation(
+            summary = "Get all suppliers",
+            description = "Get all suppliers"
+    )
+    public ResponseEntity<ResponsePayload> getAllSuppliers(Pageable pageable , @RequestParam(required = false) String category) {
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of(
+                        "success", true,
+                        "data", userService.getAllSuppliers(pageable,category)))
+                .build()
+        );
+    }
 }

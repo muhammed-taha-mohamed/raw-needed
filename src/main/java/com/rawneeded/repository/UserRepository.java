@@ -19,4 +19,8 @@ public interface UserRepository extends MongoRepository<User, String> {
     boolean existsByRole(Role role);
 
     Page<User> findAllByOwnerId(String ownerId , Pageable pageable);
+
+    Page<User> findAllByRole(Role role , Pageable pageable);
+
+    Page<User> findAllByRoleAndCategory_Id(Role role ,String categoryId , Pageable pageable);
 }

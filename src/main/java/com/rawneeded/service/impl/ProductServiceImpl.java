@@ -49,6 +49,10 @@ public class ProductServiceImpl implements IProductService {
         try {
             log.info("Start creating a product: {}", dto);
             Product product = productMapper.toEntity(dto);
+
+            // set category
+            setCategory(product, dto);
+
             return productMapper.toResponseDto(productRepository.save(product));
         }catch (AbstractException e) {
             throw e;
@@ -66,6 +70,10 @@ public class ProductServiceImpl implements IProductService {
             if (product.isPresent()) {
                 Product newProduct = product.get();
                 productMapper.update(newProduct, dto);
+
+                // set category
+                setCategory(newProduct, dto);
+
                 return productMapper.toResponseDto(productRepository.save(newProduct));
             } else {
                 throw new AbstractException(messagesUtil.getMessage("PRODUCT_NOT_FOUND"));
@@ -137,6 +145,21 @@ public class ProductServiceImpl implements IProductService {
         }
     }
 
+
+    private void setCategory(Product product , ProductRequestDTO dto) {
+        // set category
+        if(dto.getCategoryId() != null ) {
+            product.setCategory(Category.builder()
+                    .id(dto.getCategoryId())
+                    .build());
+        }
+
+        // set sub category
+        if(dto.getSubCategoryId() != null ) {
+            product.setSubCategory(SubCategory.builder()
+                    .id(dto.getSubCategoryId()).build());
+        }
+    }
 }
 
 

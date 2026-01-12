@@ -5,6 +5,7 @@ import com.rawneeded.dto.category.SubCategoryResponseDto;
 import com.rawneeded.dto.subscription.UserSubscriptionInfo;
 import com.rawneeded.dto.subscription.UserSubscriptionResponseDto;
 import com.rawneeded.dto.user.CreateUserDto;
+import com.rawneeded.dto.user.SupplierResponseDto;
 import com.rawneeded.dto.user.UserRequestDto;
 import com.rawneeded.dto.user.UserResponseDto;
 import com.rawneeded.model.Category;
@@ -28,6 +29,9 @@ public interface UserMapper {
     @Mapping(source = "category", target = "category", qualifiedByName = "categoryToDto")
     @Mapping(source = "subscription", target = "subscription", qualifiedByName = "subscriptionToDto")
     UserResponseDto toResponseDto(User user);
+
+    @Mapping(source = "category", target = "category", qualifiedByName = "categoryToDto")
+    SupplierResponseDto toSupplierResponseDto(User user);
 
     @Named("categoryToDto")
     default CategoryResponseDto categoryToDto(Category category) {
@@ -62,4 +66,7 @@ public interface UserMapper {
         return users.map(this::toResponseDto);
     }
 
+    default Page<SupplierResponseDto> toSupplierResponsePages(Page<User> users){
+        return users.map(this::toSupplierResponseDto);
+    }
 }

@@ -4,6 +4,7 @@ import com.rawneeded.dto.MailDto;
 import com.rawneeded.dto.auth.*;
 import com.rawneeded.dto.staff.CreateStaffDto;
 import com.rawneeded.dto.user.CreateUserDto;
+import com.rawneeded.dto.user.SupplierResponseDto;
 import com.rawneeded.dto.user.UserRequestDto;
 import com.rawneeded.dto.user.UserResponseDto;
 import com.rawneeded.enumeration.AccountStatus;
@@ -54,7 +55,6 @@ public class UserServiceImpl implements IUserService {
     private final ICartService cartService;
     private final MessagesUtil messagesUtil;
     private final IUserSubscriptionService subscriptionService;
-    private final UserSubscriptionMapper subscriptionMapper;
 
     // ================= AUTH METHODS ================= //
 
@@ -313,6 +313,23 @@ public class UserServiceImpl implements IUserService {
             return userMapper.toResponseDto(user);
         } catch (Exception e) {
             log.error("Failed to get user: {}", e.getMessage());
+            throw new AbstractException(e.getMessage());
+        }
+    }
+
+    @Override
+    public Page<SupplierResponseDto> getAllSuppliers(Pageable pageable, String category) {
+        try {
+            log.info("Fetching all suppliers");
+            if (category != null) {
+                return userMapper.toSupplierResponsePages(
+                        userRepository.findAllByRoleAndCategory_Id(Role.SUPPLIER_OWNER, category, pageable));
+            }
+            return userMapper.toSupplierResponsePages(
+                    userRepository.findAllByRole(Role.SUPPLIER_OWNER, pageable)
+            );
+        } catch (Exception e) {
+            log.error("Failed to get suppliers: {}", e.getMessage());
             throw new AbstractException(e.getMessage());
         }
     }

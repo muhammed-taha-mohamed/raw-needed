@@ -6,10 +6,13 @@ import com.rawneeded.dto.auth.LoginDTO;
 import com.rawneeded.dto.auth.LoginResponseDTO;
 import com.rawneeded.dto.staff.CreateStaffDto;
 import com.rawneeded.dto.user.CreateUserDto;
+import com.rawneeded.dto.user.SupplierResponseDto;
 import com.rawneeded.dto.user.UserRequestDto;
 import com.rawneeded.dto.user.UserResponseDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
+import java.util.List;
 
 public interface IUserService {
 
@@ -30,5 +33,5 @@ public interface IUserService {
     UserResponseDto findById(String id);
 
 
-
+    Page<SupplierResponseDto> getAllSuppliers(Pageable pageable,String category);
 }
