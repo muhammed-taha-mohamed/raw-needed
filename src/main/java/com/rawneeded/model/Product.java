@@ -26,5 +26,6 @@ public class Product {
     private Category category;
     @DBRef
     private SubCategory subCategory;
+    private String image;
 
 }

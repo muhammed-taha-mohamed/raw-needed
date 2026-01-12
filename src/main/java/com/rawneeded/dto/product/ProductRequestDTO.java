@@ -11,9 +11,8 @@ public class ProductRequestDTO {
     private String name;
     private String origin;
     private String supplierId;
-    private String contactPersonName;
-    private String contactPersonPhoneNumber;
     private boolean inStock;
     private String categoryId;
     private String subCategoryId;
+    private String image;
 }

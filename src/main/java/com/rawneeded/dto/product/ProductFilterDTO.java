@@ -12,5 +12,5 @@ public class ProductFilterDTO {
     private String origin;
     private String supplierId;
     private String categoryId;
-    private String subCategoryName;
+    private String subCategoryId;
 }

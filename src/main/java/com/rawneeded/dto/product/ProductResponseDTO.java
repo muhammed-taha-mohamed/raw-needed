@@ -17,9 +17,8 @@ public class ProductResponseDTO {
     private String origin;
     private String supplierId;
     private String supplierName;
-    private String contactPersonName;
-    private String contactPersonPhoneNumber;
     private boolean inStock;
     private CategoryResponseDto category;
     private SubCategoryResponseDto subCategory;
+    private String image;
 }
