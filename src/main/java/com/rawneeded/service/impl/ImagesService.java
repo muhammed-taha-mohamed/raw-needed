@@ -1,6 +1,7 @@
 package com.rawneeded.service.impl;
 
 import com.cloudinary.Cloudinary;
+import com.rawneeded.error.exceptions.AbstractException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,8 @@ public class ImagesService {
 
             return result.get("secure_url").toString();
 
+        }catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Failed to upload image to Cloudinary", e);
             throw new RuntimeException("Image upload failed");

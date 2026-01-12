@@ -50,6 +50,8 @@ public class ProductServiceImpl implements IProductService {
             log.info("Start creating a product: {}", dto);
             Product product = productMapper.toEntity(dto);
             return productMapper.toResponseDto(productRepository.save(product));
+        }catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             log.info("An error occurred while creating a product: {}", e.getMessage());
             throw new AbstractException(e.getMessage());
@@ -68,6 +70,8 @@ public class ProductServiceImpl implements IProductService {
             } else {
                 throw new AbstractException(messagesUtil.getMessage("PRODUCT_NOT_FOUND"));
             }
+        }catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             log.info("An error occurred while updating a product: {}", e.getMessage());
             throw new AbstractException(e.getMessage());
@@ -79,6 +83,8 @@ public class ProductServiceImpl implements IProductService {
         try {
             log.info("Start deleting a product: {}", id);
             productRepository.deleteById(id);
+        }catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             log.info("An error occurred while deleting a product: {}", e.getMessage());
             throw new AbstractException(e.getMessage());
@@ -124,6 +130,8 @@ public class ProductServiceImpl implements IProductService {
 
             return new PageImpl<>(content, pageable, total);
 
+        }catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             throw new AbstractException(e.getMessage());
         }

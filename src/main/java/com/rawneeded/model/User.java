@@ -50,4 +50,9 @@ public class User {
     // List of allowed screen IDs (for staff members)
     private List<String> allowedScreens;
 
+    // Organization details
+    private String organizationName;
+    private String organizationCRN;
+    private String organizationCRNImage;
+
 }

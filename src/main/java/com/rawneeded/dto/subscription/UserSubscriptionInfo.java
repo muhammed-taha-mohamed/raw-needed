@@ -12,22 +12,13 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Data
 @Builder
-public class UserSubscriptionResponseDto {
+public class UserSubscriptionInfo {
     private String id;
-    private String userId;
     private String planId;
     private String planName;
-    private String userName;
-    private String userImage;
     private int numberOfUsers;
     private int usedUsers;
     private int remainingUsers;
-    private double total;
-    private double discount;
-    private double finalPrice;
-    private String filePath;
-    private UserSubscriptionStatus status;
-    private LocalDateTime submissionDate;
     private LocalDateTime subscriptionDate ;
     private LocalDateTime expiryDate;
 }

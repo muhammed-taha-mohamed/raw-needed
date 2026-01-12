@@ -3,6 +3,7 @@ package com.rawneeded.dto.user;
 
 import com.rawneeded.dto.category.CategoryResponseDto;
 import com.rawneeded.dto.category.SubCategoryResponseDto;
+import com.rawneeded.dto.subscription.UserSubscriptionInfo;
 import com.rawneeded.dto.subscription.UserSubscriptionResponseDto;
 import com.rawneeded.enumeration.Role;
 import lombok.AllArgsConstructor;
@@ -24,7 +25,10 @@ public class UserResponseDto {
     private String phoneNumber;
     private CategoryResponseDto category;
     private List<SubCategoryResponseDto> subCategories;
-    private UserSubscriptionResponseDto subscription;
+    private UserSubscriptionInfo subscription;
     private List<String> allowedScreens;
     private String profileImage;
+    private String organizationName;
+    private String organizationCRN;
+    private String organizationCRNImage;
 }

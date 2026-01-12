@@ -88,8 +88,10 @@ public class UserServiceImpl implements IUserService {
                 }
             }
 
-            user = subscriptionService.putUserOnFreeTrail(user);
+
+            // ===== Create User =====
             user = userRepository.save(user);
+
 
             // Send welcome email asynchronously
             new Thread(() -> {
@@ -132,10 +134,6 @@ public class UserServiceImpl implements IUserService {
                         .build());
 
         UserResponseDto userInfo = userMapper.toResponseDto(user);
-
-        if (user.getSubscription() != null) {
-            userInfo.setSubscription(subscriptionMapper.toResponseDto(user.getSubscription()));
-        }
 
         return LoginResponseDTO.builder()
                 .token(token)
@@ -232,8 +230,10 @@ public class UserServiceImpl implements IUserService {
                     .category(owner.getCategory())
                     .subCategories(owner.getSubCategories())
                     .subscription(ownerSubscription)
+                    .organizationName(owner.getOrganizationName())
+                    .organizationCRN(owner.getOrganizationCRN())
+                    .organizationCRNImage(owner.getOrganizationCRNImage())
                     .build();
-
 
             staff = userRepository.save(staff);
 

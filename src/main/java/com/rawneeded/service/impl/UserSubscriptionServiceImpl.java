@@ -23,19 +23,13 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.rawneeded.enumeration.UserSubscriptionStatus.APPROVED;
@@ -92,6 +86,8 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
                     .appliedOffer(appliedOffer)
                     .availableOffers(availableOffers)
                     .build();
+        } catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error calculating price: {}", e.getMessage());
             throw new AbstractException(messagesUtil.getMessage("PRICE_CALCULATE_FAIL"));
@@ -148,12 +144,13 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
             userSubscription = userSubscriptionRepository.save(userSubscription);
 
             return subscriptionMapper.toResponseDto(userSubscription);
+        } catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error submitting user subscription: {}", e.getMessage());
             throw new AbstractException(messagesUtil.getMessage("USER_SUBSCRIPTION_SUBMIT_FAIL"));
         }
     }
-
 
 
     @Override
@@ -183,6 +180,8 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
             user.setSubscription(userSubscription);
             user.setAccountStatus(AccountStatus.ACTIVE);
             return user;
+        }catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             log.info("Error putting user on free trail: {}", e.getMessage());
             return user;
@@ -196,9 +195,11 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
             String token = messagesUtil.getAuthToken();
             String userId = jwtTokenProvider.getIdFromToken(token);
             log.info("Fetching subscription for user: {}", userId);
-            UserSubscription subscription = userSubscriptionRepository.findByUserId(userId)
+            UserSubscription subscription = userSubscriptionRepository.findFirstByUserId(userId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("SUBSCRIPTION_NOT_FOUND")));
             return subscriptionMapper.toResponseDto(subscription);
+        }catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error fetching subscription: {}", e.getMessage());
             throw new AbstractException(messagesUtil.getMessage("SUBSCRIPTION_FETCH_FAIL"));
@@ -206,7 +207,7 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
     }
 
     @Override
-    public UserSubscriptionResponseDto updateUsedUsers(String subscriptionId, boolean add) {
+    public void updateUsedUsers(String subscriptionId, boolean add) {
         try {
 
             UserSubscription subscription = userSubscriptionRepository.findById(subscriptionId)
@@ -223,7 +224,9 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
 
             subscription = userSubscriptionRepository.save(subscription);
 
-            return subscriptionMapper.toResponseDto(subscription);
+            subscriptionMapper.toResponseDto(subscription);
+        }catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error updating used users: {}", e.getMessage());
             throw new AbstractException(messagesUtil.getMessage("SUBSCRIPTION_USED_USERS_UPDATE_FAIL"));
@@ -238,6 +241,8 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
             Page<UserSubscription> userSubscriptions = userSubscriptionRepository.findByStatus(pageable,PENDING);
 
             return subscriptionMapper.toResponsePages(userSubscriptions);
+        }catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error fetching pending user subscriptions: {}", e.getMessage());
             throw new AbstractException(messagesUtil.getMessage("USER_SUBSCRIPTION_PENDING_FETCH_FAIL"));
@@ -270,27 +275,13 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
             userSubscription.setExpiryDate(expiryDate);
             userSubscription = userSubscriptionRepository.save(userSubscription);
 
-            UserSubscription finalUserSubscription = userSubscription;
-            new Thread(() -> {
-                // Get the user
-                User user = userRepository.findById(finalUserSubscription.getUserId())
-                        .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_NOT_FOUND")));
 
-                // Update user's account status to ACTIVE
-                user.setAccountStatus(AccountStatus.ACTIVE);
-
-                // Link user to the selected subscription
-                if (user.getSubscription() == null) {
-                    user.setSubscription(finalUserSubscription);
-                }
-
-                userRepository.save(user);
-
-                log.info("User subscription approved successfully. User {} activated with plan {}",
-                        user.getId(), finalUserSubscription.getPlanId());
-            }).start();
+            // Update user's account status and subscription
+            activateUserAndCleanupSubscriptions(userSubscription);
 
             return subscriptionMapper.toResponseDto(userSubscription);
+        }catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error approving user subscription: {}", e.getMessage());
             throw new AbstractException(messagesUtil.getMessage("USER_SUBSCRIPTION_APPROVE_FAIL"));
@@ -313,29 +304,12 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
             userSubscription = userSubscriptionRepository.save(userSubscription);
 
             return subscriptionMapper.toResponseDto(userSubscription);
+        }catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error rejecting user subscription: {}", e.getMessage());
             throw new AbstractException(messagesUtil.getMessage("USER_SUBSCRIPTION_REJECT_FAIL"));
         }
-    }
-
-
-
-    private String saveSubscriptionFile(MultipartFile file) throws IOException {
-        // Create upload directory if it doesn't exist
-        Path uploadPath = Paths.get(UPLOAD_DIR);
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
-        }
-
-        // Generate unique filename
-        String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
-        Path filePath = uploadPath.resolve(fileName);
-
-        // Save file
-        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-        return filePath.toString();
     }
 
 
@@ -368,4 +342,27 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
                 .max(Comparator.comparing(SpecialOffer::getDiscountPercentage))
                 .orElse(null);
     }
+
+
+    @Async
+    public void activateUserAndCleanupSubscriptions(UserSubscription subscription) {
+        try {
+            User user = userRepository.findById(subscription.getUserId())
+                    .orElseThrow(() -> new AbstractException("USER_NOT_FOUND"));
+
+            user.setAccountStatus(AccountStatus.ACTIVE);
+            user.setSubscription(subscription);
+            userRepository.save(user);
+
+            List<UserSubscription> oldSubscriptions =
+                    userSubscriptionRepository.findByUserIdAndIdNot(user.getId(), subscription.getId());
+
+            userSubscriptionRepository.deleteAll(oldSubscriptions);
+
+        } catch (Exception e) {
+            log.error("Error activating user and cleaning up subscriptions: {}", e.getMessage());
+
+        }
+    }
+
 }

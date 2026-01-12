@@ -31,6 +31,8 @@ public class PlanServiceImpl implements IPlanService {
             log.info("Fetching all subscription plans");
             List<SubscriptionPlan> plans = subscriptionPlanRepository.findAll();
             return planMapper.toResponseDtoList(plans);
+        } catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error fetching subscription plans: {}", e.getMessage());
             throw new AbstractException(messagesUtil.getMessage("PLAN_FETCH_ALL_FAIL"));
@@ -44,6 +46,8 @@ public class PlanServiceImpl implements IPlanService {
             SubscriptionPlan plan = subscriptionPlanRepository.findById(planId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("PLAN_NOT_FOUND")));
             return planMapper.toResponseDto(plan);
+        } catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error fetching subscription plan: {}", e.getMessage());
             throw new AbstractException(messagesUtil.getMessage("PLAN_FETCH_ONE_FAIL"));
@@ -76,6 +80,8 @@ public class PlanServiceImpl implements IPlanService {
             log.info("Subscription plan created successfully with id: {}", plan.getId());
 
             return planMapper.toResponseDto(plan);
+        } catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error creating subscription plan: {}", e.getMessage());
             throw new AbstractException(messagesUtil.getMessage("PLAN_CREATE_FAIL"));
@@ -105,6 +111,8 @@ public class PlanServiceImpl implements IPlanService {
             log.info("Subscription plan updated successfully with id: {}", plan.getId());
 
             return planMapper.toResponseDto(plan);
+        } catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error updating subscription plan: {}", e.getMessage());
             throw new AbstractException(messagesUtil.getMessage("PLAN_UPDATE_FAIL"));
@@ -121,6 +129,8 @@ public class PlanServiceImpl implements IPlanService {
                 throw new AbstractException(messagesUtil.getMessage("PLAN_FREE_TRIAL_DELETE"));
             }
             subscriptionPlanRepository.delete(plan);
+        } catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error deleting subscription plan: {}", e.getMessage());
             throw new AbstractException(messagesUtil.getMessage("PLAN_DELETE_FAIL"));
@@ -136,6 +146,8 @@ public class PlanServiceImpl implements IPlanService {
             plan.setActive(true);
             plan = subscriptionPlanRepository.save(plan);
             return planMapper.toResponseDto(plan);
+        } catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error activating plan: {}", e.getMessage());
             throw new AbstractException(messagesUtil.getMessage("PLAN_ACTIVATE_FAIL"));
@@ -154,6 +166,8 @@ public class PlanServiceImpl implements IPlanService {
             plan.setActive(false);
             plan = subscriptionPlanRepository.save(plan);
             return planMapper.toResponseDto(plan);
+        } catch (AbstractException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error deactivating plan: {}", e.getMessage());
             throw new AbstractException(messagesUtil.getMessage("PLAN_DEACTIVATE_FAIL"));

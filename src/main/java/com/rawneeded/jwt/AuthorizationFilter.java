@@ -31,7 +31,8 @@ public class AuthorizationFilter extends OncePerRequestFilter {
             "swagger-ui",
             "api-docs",
             "sign-up",
-            "category"
+            "category",
+            "image"
     );
     private final JwtTokenProvider jwtTokenUtil;
 

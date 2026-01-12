@@ -10,6 +10,8 @@ import org.springframework.data.domain.Page;
 @Mapper(componentModel = "spring")
 public interface UserSubscriptionMapper {
     @Mapping(target = "planName", source = "plan.name")
+    @Mapping(target = "userName", source = "user.name")
+    @Mapping(target = "userImage", source = "user.profileImage")
     UserSubscriptionResponseDto toResponseDto(UserSubscription userSubscription);
 
     default Page<UserSubscriptionResponseDto> toResponsePages(Page<UserSubscription> page) {

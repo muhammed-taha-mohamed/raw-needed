@@ -25,4 +25,8 @@ public class CreateUserDto {
     private String categoryId;
     private List<String> subCategoryIds;
     private String profileImage;
+
+    private String organizationName;
+    private String organizationCRN;
+    private String organizationCRNImage;
 }

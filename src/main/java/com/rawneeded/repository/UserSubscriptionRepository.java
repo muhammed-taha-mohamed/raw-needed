@@ -12,8 +12,10 @@ import java.util.Optional;
 
 @Repository
 public interface UserSubscriptionRepository extends MongoRepository<UserSubscription, String> {
-    Optional<UserSubscription> findByUserId(String userId);
+    Optional<UserSubscription> findFirstByUserId(String userId);
     List<UserSubscription> findByPlanId(String planId);
     Optional<UserSubscription> findByUserIdAndStatus(String userId, UserSubscriptionStatus status);
     Page<UserSubscription> findByStatus(Pageable pageable,UserSubscriptionStatus status);
+
+    List<UserSubscription> findByUserIdAndIdNot (String userId , String id);
 }
