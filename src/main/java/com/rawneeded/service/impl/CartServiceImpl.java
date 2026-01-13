@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Optional;
 
 
 @Service
@@ -80,28 +81,74 @@ public class CartServiceImpl implements ICartService {
     public CartDTO addItemToCart(String userId, String productId, float quantity) {
         try {
             log.info("Start adding item to cart : {}", userId);
+
             Cart cart = cartRepository.findByUserId(userId)
-                    .orElse(Cart.builder().userId(userId)
+                    .orElse(Cart.builder()
+                            .userId(userId)
                             .items(new ArrayList<>())
                             .build());
 
             cart.setItems(cart.getItems() == null ? new ArrayList<>() : cart.getItems());
 
             Product product = productRepository.findById(productId)
-                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("PRODUCT_NOT_FOUND")));
+                    .orElseThrow(() ->
+                            new AbstractException(messagesUtil.getMessage("PRODUCT_NOT_FOUND")));
 
+            // 🔍 check if item already exists
+            Optional<CartItemDTO> existingItemOpt = cart.getItems().stream()
+                    .filter(item -> item.getId().equals(productId))
+                    .findFirst();
 
-            CartItemDTO newItem = productMapper.toCartItemDto(product);
-            newItem.setQuantity(quantity);
-            cart.getItems().add(newItem);
+            if (existingItemOpt.isPresent()) {
+                // Item already exists . Update quantity
+                CartItemDTO existingItem = existingItemOpt.get();
+                existingItem.setQuantity(quantity);
+            } else {
+                // Item does not exist . Add new
+                CartItemDTO newItem = productMapper.toCartItemDto(product);
+                newItem.setQuantity(quantity);
+                cart.getItems().add(newItem);
+            }
 
             cart = cartRepository.save(cart);
             return cartMapper.toDTO(cart);
+
         } catch (Exception e) {
-            log.error("Failed to add item to cart due to : {}", e.getMessage());
+            log.error("Failed to add item to cart due to : {}", e.getMessage(), e);
             throw new AbstractException(e.getMessage());
         }
     }
+
+
+    @Override
+    public CartDTO removeItemFromCart(String userId, String productId) {
+        try {
+            log.info("Start removing item from cart for user: {}", userId);
+
+            Cart cart = cartRepository.findByUserId(userId)
+                    .orElseThrow(() ->
+                            new AbstractException(messagesUtil.getMessage("CART_NOT_FOUND")));
+
+            if (cart.getItems() == null || cart.getItems().isEmpty()) {
+                throw new AbstractException(messagesUtil.getMessage("CART_IS_EMPTY"));
+            }
+
+            boolean removed = cart.getItems()
+                    .removeIf(item -> item.getId().equals(productId));
+
+            if (!removed) {
+                throw new AbstractException(messagesUtil.getMessage("PRODUCT_NOT_IN_CART"));
+            }
+
+            cart = cartRepository.save(cart);
+            return cartMapper.toDTO(cart);
+
+        } catch (Exception e) {
+            log.error("Failed to remove item from cart due to : {}", e.getMessage(), e);
+            throw new AbstractException(e.getMessage());
+        }
+    }
+
 
 
 }

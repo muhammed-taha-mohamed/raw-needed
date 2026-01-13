@@ -69,4 +69,17 @@ public class CartController {
                         "data", updatedCart))
                 .build());
     }
+
+    @DeleteMapping("/remove-item")
+    @Operation(summary = "remove item from the user's cart.",
+            description = "This API is used to remove a product from the user's cart.")
+    public ResponseEntity<ResponsePayload> removeItemFromCart(@RequestParam String userId, @RequestParam String productId) {
+        CartDTO updatedCart = cartService.removeItemFromCart(userId, productId);
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of(
+                        "success", true,
+                        "data", updatedCart))
+                .build());
+    }
 }
