@@ -334,6 +334,22 @@ public class UserServiceImpl implements IUserService {
         }
     }
 
+    @Override
+    public List<SupplierResponseDto> getAllSuppliers(String category) {
+        try {
+            log.info("Fetching all suppliers");
+            if (category != null) {
+                return userMapper.toSupplierResponseList(
+                        userRepository.findAllByRoleAndCategory_Id(Role.SUPPLIER_OWNER, category));
+            }
+            return userMapper.toSupplierResponseList(
+                    userRepository.findAllByRole(Role.SUPPLIER_OWNER)
+            );
+        } catch (Exception e) {
+            log.error("Failed to get suppliers: {}", e.getMessage());
+            throw new AbstractException(e.getMessage());
+        }
+    }
     @PostConstruct
     public void initSuperAdmin() {
         if (userRepository.existsByRole(Role.SUPER_ADMIN)) {

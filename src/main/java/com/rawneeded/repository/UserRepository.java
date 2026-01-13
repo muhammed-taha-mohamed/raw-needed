@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -22,5 +23,9 @@ public interface UserRepository extends MongoRepository<User, String> {
 
     Page<User> findAllByRole(Role role , Pageable pageable);
 
+    List<User> findAllByRole(Role role);
+
     Page<User> findAllByRoleAndCategory_Id(Role role ,String categoryId , Pageable pageable);
+    List<User> findAllByRoleAndCategory_Id(Role role , String categoryId);
+
 }

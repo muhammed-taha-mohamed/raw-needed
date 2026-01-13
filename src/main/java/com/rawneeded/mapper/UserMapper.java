@@ -14,6 +14,8 @@ import com.rawneeded.model.UserSubscription;
 import org.mapstruct.*;
 import org.springframework.data.domain.Page;
 
+import java.util.List;
+
 @Mapper(componentModel = "spring" )
 public interface UserMapper {
 
@@ -68,5 +70,9 @@ public interface UserMapper {
 
     default Page<SupplierResponseDto> toSupplierResponsePages(Page<User> users){
         return users.map(this::toSupplierResponseDto);
+    }
+
+    default List<SupplierResponseDto> toSupplierResponseList(List<User> users){
+        return users.stream().map(this::toSupplierResponseDto).toList();
     }
 }

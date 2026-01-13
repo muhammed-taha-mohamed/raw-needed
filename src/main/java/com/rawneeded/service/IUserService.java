@@ -34,4 +34,6 @@ public interface IUserService {
 
 
     Page<SupplierResponseDto> getAllSuppliers(Pageable pageable,String category);
+
+    List<SupplierResponseDto> getAllSuppliers(String category);
 }

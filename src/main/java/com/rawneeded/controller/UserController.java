@@ -129,4 +129,19 @@ public class UserController {
                 .build()
         );
     }
+
+    @GetMapping("/suppliers-list")
+    @Operation(
+            summary = "Get all suppliers as list",
+            description = "Get all suppliers as list"
+    )
+    public ResponseEntity<ResponsePayload> getAllSuppliersAsList(@RequestParam(required = false) String category) {
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of(
+                        "success", true,
+                        "data", userService.getAllSuppliers(category)))
+                .build()
+        );
+    }
 }
