@@ -6,7 +6,7 @@ import com.rawneeded.dto.auth.LoginDTO;
 import com.rawneeded.dto.auth.LoginResponseDTO;
 import com.rawneeded.dto.staff.CreateStaffDto;
 import com.rawneeded.dto.user.CreateUserDto;
-import com.rawneeded.dto.user.SupplierResponseDto;
+import com.rawneeded.dto.user.SupplierInfo;
 import com.rawneeded.dto.user.UserRequestDto;
 import com.rawneeded.dto.user.UserResponseDto;
 import org.springframework.data.domain.Page;
@@ -33,7 +33,7 @@ public interface IUserService {
     UserResponseDto findById(String id);
 
 
-    Page<SupplierResponseDto> getAllSuppliers(Pageable pageable,String category);
+    Page<SupplierInfo> getAllSuppliers(Pageable pageable, String category);
 
-    List<SupplierResponseDto> getAllSuppliers(String category);
+    List<SupplierInfo> getAllSuppliers(String category);
 }

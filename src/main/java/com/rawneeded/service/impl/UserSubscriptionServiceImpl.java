@@ -98,7 +98,7 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
     public UserSubscriptionResponseDto submitUserSubscription(UserSubscriptionRequestDto requestDto) {
         try {
             String token = messagesUtil.getAuthToken();
-            String userId = jwtTokenProvider.getIdFromToken(token);
+            String userId = jwtTokenProvider.getOwnerIdFromToken(token);
             log.info("Submitting user subscription for user: {}", userId);
 
             User user = userRepository.findById(userId)
@@ -193,7 +193,7 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
     public UserSubscriptionResponseDto getUserSubscription() {
         try {
             String token = messagesUtil.getAuthToken();
-            String userId = jwtTokenProvider.getIdFromToken(token);
+            String userId = jwtTokenProvider.getOwnerIdFromToken(token);
             log.info("Fetching subscription for user: {}", userId);
             UserSubscription subscription = userSubscriptionRepository.findFirstByUserId(userId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("SUBSCRIPTION_NOT_FOUND")));

@@ -9,7 +9,7 @@ import lombok.Getter;
 public enum Role {
 
     // Admin roles
-    SYSTEM_ADMIN,
+
     SUPER_ADMIN,
 
     // Customer roles

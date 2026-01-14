@@ -8,5 +8,8 @@ public  class OtpUtil {
             return String.format("%06d", new Random().nextInt(1000000));
     }
 
+    public static String generateOrderNumber() {
+        return String.format("%010d", new Random().nextInt(1000000000));
+    }
 
 }

@@ -14,7 +14,7 @@ import java.util.List;
 @NoArgsConstructor
 @Data
 @Builder
-public class SupplierResponseDto {
+public class SupplierInfo {
     private String id;
     private String name;
     private String email;

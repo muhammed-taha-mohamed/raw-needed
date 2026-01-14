@@ -1,11 +1,9 @@
 package com.rawneeded.mapper;
 
 import com.rawneeded.dto.category.CategoryResponseDto;
-import com.rawneeded.dto.category.SubCategoryResponseDto;
 import com.rawneeded.dto.subscription.UserSubscriptionInfo;
-import com.rawneeded.dto.subscription.UserSubscriptionResponseDto;
 import com.rawneeded.dto.user.CreateUserDto;
-import com.rawneeded.dto.user.SupplierResponseDto;
+import com.rawneeded.dto.user.SupplierInfo;
 import com.rawneeded.dto.user.UserRequestDto;
 import com.rawneeded.dto.user.UserResponseDto;
 import com.rawneeded.model.Category;
@@ -33,7 +31,7 @@ public interface UserMapper {
     UserResponseDto toResponseDto(User user);
 
     @Mapping(source = "category", target = "category", qualifiedByName = "categoryToDto")
-    SupplierResponseDto toSupplierResponseDto(User user);
+    SupplierInfo toSupplierResponseDto(User user);
 
     @Named("categoryToDto")
     default CategoryResponseDto categoryToDto(Category category) {
@@ -68,11 +66,11 @@ public interface UserMapper {
         return users.map(this::toResponseDto);
     }
 
-    default Page<SupplierResponseDto> toSupplierResponsePages(Page<User> users){
+    default Page<SupplierInfo> toSupplierResponsePages(Page<User> users){
         return users.map(this::toSupplierResponseDto);
     }
 
-    default List<SupplierResponseDto> toSupplierResponseList(List<User> users){
+    default List<SupplierInfo> toSupplierResponseList(List<User> users){
         return users.stream().map(this::toSupplierResponseDto).toList();
     }
 }

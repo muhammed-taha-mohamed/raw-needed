@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 @Data
 public class GenerateTokenDto {
     private String id;
+    private String ownerId;
     private String name;
     private String email;
     private Role role;

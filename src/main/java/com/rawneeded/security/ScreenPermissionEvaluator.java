@@ -34,7 +34,7 @@ public class ScreenPermissionEvaluator implements PermissionEvaluator {
             }
 
             String userId = jwtTokenProvider.getIdFromToken(token);
-            String roleStr = jwtTokenProvider.getRoleFromToken(token);
+            String roleStr = jwtTokenProvider.getRoleFromToken(token).toString();
 
             if (userId == null || roleStr == null) {
                 return false;
@@ -48,7 +48,7 @@ public class ScreenPermissionEvaluator implements PermissionEvaluator {
             Role role = Role.valueOf(roleStr);
 
             // SYSTEM_ADMIN and OWNERs have full access
-            if (role == Role.SYSTEM_ADMIN || isOwner(role)) {
+            if (role == Role.SUPER_ADMIN || isOwner(role)) {
                 return true;
             }
 

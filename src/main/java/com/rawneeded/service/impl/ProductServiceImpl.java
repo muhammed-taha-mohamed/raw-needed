@@ -3,6 +3,7 @@ package com.rawneeded.service.impl;
 import com.rawneeded.dto.product.ProductFilterDTO;
 import com.rawneeded.dto.product.ProductRequestDTO;
 import com.rawneeded.dto.product.ProductResponseDTO;
+import com.rawneeded.enumeration.Role;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.jwt.JwtTokenProvider;
 import com.rawneeded.mapper.ProductMapper;
@@ -42,11 +43,16 @@ public class ProductServiceImpl implements IProductService {
     private final ProductMapper productMapper;
     private final MongoTemplate mongoTemplate;
     private final CategoryRepository categoryRepository;
+    private final JwtTokenProvider tokenProvider;
 
 
     @Override
     public ProductResponseDTO create(ProductRequestDTO dto) {
         try {
+            String token = messagesUtil.getAuthToken();
+            String supplierId = tokenProvider.getOwnerIdFromToken(token);
+            dto.setSupplierId(supplierId);
+
             log.info("Start creating a product: {}", dto);
             Product product = productMapper.toEntity(dto);
 
@@ -102,6 +108,15 @@ public class ProductServiceImpl implements IProductService {
     @Override
     public Page<ProductResponseDTO> filter(Pageable pageable, ProductFilterDTO filterDTO) {
         try {
+
+            String token = messagesUtil.getAuthToken();
+            Role role = tokenProvider.getRoleFromToken(token);
+
+            // if user is supplier then set supplierId from token
+            if(role == Role.SUPPLIER_OWNER || role == Role.SUPPLIER_STAFF) {
+                filterDTO.setSupplierId(tokenProvider.getOwnerIdFromToken(token));
+            }
+
             List<Criteria> criteriaList = new ArrayList<>();
 
             if (filterDTO.getName() != null && !filterDTO.getName().isEmpty()) {

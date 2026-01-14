@@ -4,7 +4,7 @@ import com.rawneeded.dto.MailDto;
 import com.rawneeded.dto.auth.*;
 import com.rawneeded.dto.staff.CreateStaffDto;
 import com.rawneeded.dto.user.CreateUserDto;
-import com.rawneeded.dto.user.SupplierResponseDto;
+import com.rawneeded.dto.user.SupplierInfo;
 import com.rawneeded.dto.user.UserRequestDto;
 import com.rawneeded.dto.user.UserResponseDto;
 import com.rawneeded.enumeration.AccountStatus;
@@ -12,7 +12,6 @@ import com.rawneeded.enumeration.Role;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.jwt.JwtTokenProvider;
 import com.rawneeded.mapper.UserMapper;
-import com.rawneeded.mapper.UserSubscriptionMapper;
 import com.rawneeded.model.Category;
 import com.rawneeded.model.SubCategory;
 import com.rawneeded.model.User;
@@ -128,6 +127,7 @@ public class UserServiceImpl implements IUserService {
         String token = tokenProvider.generateToken(
                 GenerateTokenDto.builder()
                         .id(user.getId())
+                        .ownerId(user.getOwnerId()!=null?user.getOwnerId():user.getId())
                         .name(user.getName())
                         .email(user.getEmail())
                         .role(user.getRole())
@@ -318,7 +318,7 @@ public class UserServiceImpl implements IUserService {
     }
 
     @Override
-    public Page<SupplierResponseDto> getAllSuppliers(Pageable pageable, String category) {
+    public Page<SupplierInfo> getAllSuppliers(Pageable pageable, String category) {
         try {
             log.info("Fetching all suppliers");
             if (category != null) {
@@ -335,7 +335,7 @@ public class UserServiceImpl implements IUserService {
     }
 
     @Override
-    public List<SupplierResponseDto> getAllSuppliers(String category) {
+    public List<SupplierInfo> getAllSuppliers(String category) {
         try {
             log.info("Fetching all suppliers");
             if (category != null) {
