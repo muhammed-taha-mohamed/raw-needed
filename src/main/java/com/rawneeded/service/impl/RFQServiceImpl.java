@@ -17,6 +17,8 @@ import com.rawneeded.model.User;
 import com.rawneeded.repository.RFQOrderLineRepository;
 import com.rawneeded.repository.RFQOrderRepository;
 import com.rawneeded.repository.UserRepository;
+import com.rawneeded.enumeration.NotificationType;
+import com.rawneeded.service.INotificationService;
 import com.rawneeded.service.IRFQService;
 import com.rawneeded.util.MessagesUtil;
 import lombok.AllArgsConstructor;
@@ -28,7 +30,6 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import static com.rawneeded.util.OtpUtil.generateOTP;
 import static com.rawneeded.util.OtpUtil.generateOrderNumber;
 
 @Slf4j
@@ -42,6 +43,7 @@ public class RFQServiceImpl implements IRFQService {
     private final JwtTokenProvider tokenProvider;
     private final RFQMapper rfqMapper;
     private final MessagesUtil messagesUtil;
+    private final INotificationService notificationService;
 
 
     // ===================== CLIENT =====================
@@ -70,12 +72,30 @@ public class RFQServiceImpl implements IRFQService {
                     .orderNumber(generateOrderNumber())
                     .build();
 
-            order = orderRepository.save(order);
+            final RFQOrder savedOrder = orderRepository.save(order);
 
             List<RFQOrderLine> lines = toOrderLines(
-                    requestDto.getItems(), order.getId(), creator);
+                    requestDto.getItems(), savedOrder.getId(), creator);
 
             lineRepository.saveAll(lines);
+
+            // Send notifications to suppliers about new order
+            lines.forEach(line -> {
+                try {
+                    notificationService.sendNotificationToSupplier(
+                            line.getSupplierId(),
+                            NotificationType.ORDER_CREATED,
+                            "NOTIFICATION_ORDER_CREATED_TITLE",
+                            "NOTIFICATION_ORDER_CREATED_MESSAGE",
+                            savedOrder.getId(),
+                            "RFQ_ORDER",
+                            line.getProductName(),
+                            line.getQuantity()
+                    );
+                } catch (Exception e) {
+                    log.error("Failed to send notification to supplier {}: {}", line.getSupplierId(), e.getMessage());
+                }
+            });
 
             log.info("RFQ created successfully with id {}", order.getId());
 
@@ -97,8 +117,6 @@ public class RFQServiceImpl implements IRFQService {
             RFQOrder order = orderRepository.findById(orderId)
                     .orElseThrow(() ->
                             new AbstractException(messagesUtil.getMessage("RFQ_ORDER_NOT_FOUND")));
-
-            List<RFQOrderLine> lines = lineRepository.findByOrderId(orderId);
 
             return rfqMapper.toOrderResponseDto(order);
 
@@ -140,6 +158,25 @@ public class RFQServiceImpl implements IRFQService {
 
             order.setStatus(OrderStatus.CANCELLED);
             orderRepository.save(order);
+
+            // Send notifications to suppliers about order cancellation
+            List<RFQOrderLine> lines = lineRepository.findByOrderId(orderId);
+            lines.forEach(line -> {
+                try {
+                    notificationService.sendNotificationToSupplier(
+                            line.getSupplierId(),
+                            NotificationType.ORDER_STATUS_UPDATED,
+                            "NOTIFICATION_ORDER_CANCELLED_TITLE",
+                            "NOTIFICATION_ORDER_CANCELLED_MESSAGE",
+                            order.getId(),
+                            "RFQ_ORDER",
+                            order.getOrderNumber()
+                    );
+                } catch (Exception e) {
+                    log.error("Failed to send cancellation notification to supplier {}: {}", 
+                            line.getSupplierId(), e.getMessage());
+                }
+            });
 
         } catch (AbstractException e) {
             throw e;
@@ -212,6 +249,28 @@ public class RFQServiceImpl implements IRFQService {
 
             line.setStatus(LineStatus.RESPONDED);
             lineRepository.save(line);
+
+            // Send notification to customer about supplier response
+            final RFQOrder order = orderRepository.findById(line.getOrderId())
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("RFQ_ORDER_NOT_FOUND")));
+            
+            String customerOwnerId = line.getCustomerOwnerId() != null ? 
+                    line.getCustomerOwnerId() : order.getOwnerId();
+            
+            try {
+                notificationService.sendNotificationToCustomer(
+                        customerOwnerId,
+                        NotificationType.ORDER_REPLY,
+                        "NOTIFICATION_ORDER_REPLY_TITLE",
+                        "NOTIFICATION_ORDER_REPLY_MESSAGE",
+                        line.getOrderId(),
+                        "RFQ_ORDER",
+                        line.getSupplierName(),
+                        line.getProductName()
+                );
+            } catch (Exception e) {
+                log.error("Failed to send notification to customer {}: {}", customerOwnerId, e.getMessage());
+            }
 
             updateOrderStatus(line.getOrderId());
 
