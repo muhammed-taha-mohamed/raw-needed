@@ -3,7 +3,6 @@ package com.rawneeded.controller;
 import com.rawneeded.dto.ResponsePayload;
 import com.rawneeded.dto.notification.CreateNotificationDto;
 import com.rawneeded.dto.notification.NotificationResponseDto;
-import com.rawneeded.dto.notification.UpdateNotificationDto;
 import com.rawneeded.service.INotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.AllArgsConstructor;
