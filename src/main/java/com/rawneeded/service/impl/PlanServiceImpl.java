@@ -3,6 +3,7 @@ package com.rawneeded.service.impl;
 import com.rawneeded.dto.subscription.CreatePlanRequestDto;
 import com.rawneeded.dto.subscription.SubscriptionPlanResponseDto;
 import com.rawneeded.dto.subscription.UpdatePlanRequestDto;
+import com.rawneeded.enumeration.PlanType;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.mapper.PlanMapper;
 import com.rawneeded.model.SubscriptionPlan;
@@ -40,6 +41,20 @@ public class PlanServiceImpl implements IPlanService {
     }
 
     @Override
+    public List<SubscriptionPlanResponseDto> getPlansByType(PlanType planType) {
+        try {
+            log.info("Fetching subscription plans by type: {}", planType);
+            List<SubscriptionPlan> plans = subscriptionPlanRepository.findByPlanTypeAndActiveTrue(planType);
+            return planMapper.toResponseDtoList(plans);
+        } catch (AbstractException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error fetching subscription plans by type: {}", e.getMessage());
+            throw new AbstractException(messagesUtil.getMessage("PLAN_FETCH_BY_TYPE_FAIL"));
+        }
+    }
+
+    @Override
     public SubscriptionPlanResponseDto getPlanById(String planId) {
         try {
             log.info("Fetching subscription plan with id: {}", planId);
@@ -64,18 +79,11 @@ public class PlanServiceImpl implements IPlanService {
             if (nameExists)
                 throw new AbstractException(messagesUtil.getMessage("PLAN_NAME_EXISTS"));
 
-
-            // Check if free trial already exists
-            boolean requestedFree = Boolean.TRUE.equals(requestDto.getFreeTrial());
-            if (requestedFree) {
-                subscriptionPlanRepository.findByFreeTrialTrue()
-                        .ifPresent(p -> {
-                            throw new AbstractException(messagesUtil.getMessage("PLAN_FREE_TRIAL_SINGLE"));
-                        });
-            }
-
             SubscriptionPlan plan = planMapper.toEntity(requestDto);
             plan.setActive(true);
+            if (requestDto.getExclusive() != null) {
+                plan.setExclusive(requestDto.getExclusive());
+            }
             plan = subscriptionPlanRepository.save(plan);
             log.info("Subscription plan created successfully with id: {}", plan.getId());
 
@@ -125,9 +133,6 @@ public class PlanServiceImpl implements IPlanService {
             log.info("Deleting subscription plan with id: {}", planId);
             SubscriptionPlan plan = subscriptionPlanRepository.findById(planId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("PLAN_NOT_FOUND")));
-            if (plan.isFreeTrial()) {
-                throw new AbstractException(messagesUtil.getMessage("PLAN_FREE_TRIAL_DELETE"));
-            }
             subscriptionPlanRepository.delete(plan);
         } catch (AbstractException e) {
             throw e;
@@ -160,9 +165,6 @@ public class PlanServiceImpl implements IPlanService {
             log.info("Deactivating subscription plan: {}", planId);
             SubscriptionPlan plan = subscriptionPlanRepository.findById(planId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("PLAN_NOT_FOUND")));
-            if (plan.isFreeTrial()) {
-                throw new AbstractException(messagesUtil.getMessage("PLAN_FREE_TRIAL_DEACTIVATE"));
-            }
             plan.setActive(false);
             plan = subscriptionPlanRepository.save(plan);
             return planMapper.toResponseDto(plan);

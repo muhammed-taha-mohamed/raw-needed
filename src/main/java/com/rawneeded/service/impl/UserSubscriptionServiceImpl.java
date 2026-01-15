@@ -157,8 +157,17 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
     public User putUserOnFreeTrail(User user) {
         try{
             log.info("Putting user on free trail: {}", user.getId());
-            SubscriptionPlan freePlan = subscriptionPlanRepository.findByFreeTrialTrue()
-                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_SUB_PLAN_NOT_FOUND")));
+            // Find a plan with price 0 (free plan)
+            List<SubscriptionPlan> freePlans = subscriptionPlanRepository.findAll().stream()
+                    .filter(plan -> plan.getPricePerUser() == 0.0 && plan.isActive())
+                    .toList();
+            
+            if (freePlans.isEmpty()) {
+                log.warn("No free plan found (price = 0). Skipping free trial subscription for user: {}", user.getId());
+                return user;
+            }
+            
+            SubscriptionPlan freePlan = freePlans.get(0);
             UserSubscription userSubscription = UserSubscription.builder()
                     .user(user)
                     .userId(user.getId())

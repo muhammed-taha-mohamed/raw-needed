@@ -4,6 +4,7 @@ import com.rawneeded.dto.ResponsePayload;
 import com.rawneeded.dto.subscription.CreatePlanRequestDto;
 import com.rawneeded.dto.subscription.SubscriptionPlanResponseDto;
 import com.rawneeded.dto.subscription.UpdatePlanRequestDto;
+import com.rawneeded.enumeration.PlanType;
 import com.rawneeded.service.IPlanService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -27,6 +28,19 @@ public class PlanController {
             description = "Retrieve all available subscription plans")
     public ResponseEntity<ResponsePayload> getAllPlans() {
         List<SubscriptionPlanResponseDto> plans = planService.getAllPlans();
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of(
+                        "success", true,
+                        "data", plans))
+                .build());
+    }
+
+    @GetMapping("/type/{planType}")
+    @Operation(summary = "Get subscription plans by type",
+            description = "Retrieve subscription plans filtered by type (SUPPLIER, CUSTOMER, or BOTH)")
+    public ResponseEntity<ResponsePayload> getPlansByType(@PathVariable PlanType planType) {
+        List<SubscriptionPlanResponseDto> plans = planService.getPlansByType(planType);
         return ResponseEntity.ok(ResponsePayload.builder()
                 .date(LocalDateTime.now())
                 .content(Map.of(
@@ -81,7 +95,7 @@ public class PlanController {
 
     @DeleteMapping("/{planId}")
     @Operation(summary = "Delete a subscription plan",
-            description = "Delete a subscription plan (SYSTEM_ADMIN only). Free trial plan cannot be deleted.")
+            description = "Delete a subscription plan (SYSTEM_ADMIN only)")
     public ResponseEntity<ResponsePayload> deletePlan(@PathVariable String planId) {
         planService.deletePlan(planId);
         return ResponseEntity.ok(ResponsePayload.builder()
@@ -108,7 +122,7 @@ public class PlanController {
 
     @PutMapping("/{planId}/deactivate")
     @Operation(summary = "Deactivate a subscription plan",
-            description = "Deactivate a subscription plan (SYSTEM_ADMIN only). Free trial plan cannot be deactivated.")
+            description = "Deactivate a subscription plan (SYSTEM_ADMIN only)")
     public ResponseEntity<ResponsePayload> deactivatePlan(@PathVariable String planId) {
         SubscriptionPlanResponseDto plan = planService.deactivatePlan(planId);
         return ResponseEntity.ok(ResponsePayload.builder()

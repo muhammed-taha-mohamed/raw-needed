@@ -1,6 +1,7 @@
 package com.rawneeded.dto.subscription;
 
 import com.rawneeded.enumeration.BillingFrequency;
+import com.rawneeded.enumeration.PlanType;
 import com.rawneeded.model.SpecialOffer;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -31,6 +32,10 @@ public class CreatePlanRequestDto {
     
     private List<SpecialOffer> specialOffers;
     
-
-    private Boolean freeTrial;
+    @NotNull(message = "Plan type is required")
+    private PlanType planType;
+    
+    private List<String> features;
+    
+    private Boolean exclusive;
 }

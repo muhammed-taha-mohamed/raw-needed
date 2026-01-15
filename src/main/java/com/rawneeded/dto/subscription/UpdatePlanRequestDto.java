@@ -1,6 +1,7 @@
 package com.rawneeded.dto.subscription;
 
 import com.rawneeded.enumeration.BillingFrequency;
+import com.rawneeded.enumeration.PlanType;
 import com.rawneeded.model.SpecialOffer;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,5 +26,10 @@ public class UpdatePlanRequestDto {
     private BillingFrequency billingFrequency;
     
     private List<SpecialOffer> specialOffers;
-
+    
+    private PlanType planType;
+    
+    private List<String> features;
+    
+    private Boolean exclusive;
 }
