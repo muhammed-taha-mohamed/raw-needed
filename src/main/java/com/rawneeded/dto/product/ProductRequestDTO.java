@@ -12,6 +12,7 @@ public class ProductRequestDTO {
     private String origin;
     private String supplierId;
     private boolean inStock;
+    private Integer stockQuantity;
     private String categoryId;
     private String subCategoryId;
     private String image;

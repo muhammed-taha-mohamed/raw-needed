@@ -22,6 +22,7 @@ public class Product {
     private String contactPersonName;
     private String contactPersonPhoneNumber;
     private boolean inStock;
+    private Integer stockQuantity;
     @DBRef
     private Category category;
     @DBRef

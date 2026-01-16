@@ -17,4 +17,6 @@ public class SupplierResponseOnOrderDTO {
     private float shippingCost;
     private LocalDate estimatedDelivery;
     private LocalDateTime respondedAt;
+    private float availableQuantity;
+    private String shippingInfo;
 }

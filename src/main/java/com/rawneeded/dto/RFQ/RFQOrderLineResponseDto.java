@@ -34,6 +34,8 @@ public class RFQOrderLineResponseDto {
     private float quantity;
 
     private LineStatus status;
+    
+    private Boolean customerApproved;
 
     // Supplier Response
     private SupplierResponseOnOrderDTO supplierResponse;

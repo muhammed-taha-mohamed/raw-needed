@@ -14,9 +14,11 @@ import com.rawneeded.model.RFQOrder;
 import com.rawneeded.model.RFQOrderLine;
 import com.rawneeded.dto.RFQ.SupplierResponseOnOrderDTO;
 import com.rawneeded.model.User;
+import com.rawneeded.model.Product;
 import com.rawneeded.repository.RFQOrderLineRepository;
 import com.rawneeded.repository.RFQOrderRepository;
 import com.rawneeded.repository.UserRepository;
+import com.rawneeded.repository.ProductRepository;
 import com.rawneeded.enumeration.NotificationType;
 import com.rawneeded.service.INotificationService;
 import com.rawneeded.service.IRFQService;
@@ -40,6 +42,7 @@ public class RFQServiceImpl implements IRFQService {
     private final RFQOrderRepository orderRepository;
     private final RFQOrderLineRepository lineRepository;
     private final UserRepository userRepository;
+    private final ProductRepository productRepository;
     private final JwtTokenProvider tokenProvider;
     private final RFQMapper rfqMapper;
     private final MessagesUtil messagesUtil;
@@ -232,6 +235,129 @@ public class RFQServiceImpl implements IRFQService {
     }
 
     @Override
+    public void approveRFQLine(String lineId) {
+        try {
+            log.info("Customer approving RFQ line {}", lineId);
+
+            RFQOrderLine line = lineRepository.findById(lineId)
+                    .orElseThrow(() ->
+                            new AbstractException(messagesUtil.getMessage("RFQ_LINE_NOT_FOUND")));
+
+            if (line.getStatus() != LineStatus.RESPONDED) {
+                throw new AbstractException(
+                        messagesUtil.getMessage("RFQ_LINE_NOT_RESPONDED"));
+            }
+
+            if (Boolean.TRUE.equals(line.getCustomerApproved())) {
+                throw new AbstractException(
+                        messagesUtil.getMessage("RFQ_LINE_ALREADY_APPROVED"));
+            }
+
+            line.setCustomerApproved(true);
+            line.setStatus(LineStatus.APPROVED);
+            lineRepository.save(line);
+
+            // Send notification to supplier about customer approval
+            try {
+                notificationService.sendNotificationToSupplier(
+                        line.getSupplierId(),
+                        NotificationType.ORDER_REPLY,
+                        "NOTIFICATION_ORDER_APPROVED_TITLE",
+                        "NOTIFICATION_ORDER_APPROVED_MESSAGE",
+                        line.getOrderId(),
+                        "RFQ_ORDER",
+                        line.getProductName()
+                );
+            } catch (Exception e) {
+                log.error("Failed to send approval notification to supplier {}: {}", 
+                        line.getSupplierId(), e.getMessage());
+            }
+
+            updateOrderStatus(line.getOrderId());
+
+        } catch (AbstractException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error approving RFQ line: {}", e.getMessage(), e);
+            throw new AbstractException(messagesUtil.getMessage("RFQ_LINE_APPROVE_FAIL"));
+        }
+    }
+
+    @Override
+    public void completeOrderLine(String lineId) {
+        try {
+            log.info("Supplier completing order line {}", lineId);
+
+            RFQOrderLine line = lineRepository.findById(lineId)
+                    .orElseThrow(() ->
+                            new AbstractException(messagesUtil.getMessage("RFQ_LINE_NOT_FOUND")));
+
+            if (line.getStatus() != LineStatus.APPROVED) {
+                throw new AbstractException(
+                        messagesUtil.getMessage("RFQ_LINE_NOT_APPROVED"));
+            }
+
+            // Update product stock
+            Product product = productRepository.findById(line.getProductId())
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("PRODUCT_NOT_FOUND")));
+
+            if (product.getStockQuantity() == null) {
+                product.setStockQuantity(0);
+            }
+
+            float orderedQuantity = line.getSupplierResponse() != null ? 
+                    line.getSupplierResponse().getAvailableQuantity() : line.getQuantity();
+            
+            int newStock = product.getStockQuantity() - (int) orderedQuantity;
+            
+            if (newStock < 0) {
+                throw new AbstractException(messagesUtil.getMessage("INSUFFICIENT_STOCK"));
+            }
+
+            product.setStockQuantity(newStock);
+            
+            // Update inStock flag
+            product.setInStock(newStock > 0);
+            
+            productRepository.save(product);
+
+            // Update line status
+            line.setStatus(LineStatus.COMPLETED);
+            lineRepository.save(line);
+
+            // Send notification to customer about order completion
+            final RFQOrder order = orderRepository.findById(line.getOrderId())
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("RFQ_ORDER_NOT_FOUND")));
+            
+            String customerOwnerId = line.getCustomerOwnerId() != null ? 
+                    line.getCustomerOwnerId() : order.getOwnerId();
+            
+            try {
+                notificationService.sendNotificationToCustomer(
+                        customerOwnerId,
+                        NotificationType.ORDER_STATUS_UPDATED,
+                        "NOTIFICATION_ORDER_COMPLETED_TITLE",
+                        "NOTIFICATION_ORDER_COMPLETED_MESSAGE",
+                        line.getOrderId(),
+                        "RFQ_ORDER",
+                        line.getProductName()
+                );
+            } catch (Exception e) {
+                log.error("Failed to send completion notification to customer {}: {}", 
+                        customerOwnerId, e.getMessage());
+            }
+
+            updateOrderStatus(line.getOrderId());
+
+        } catch (AbstractException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error completing order line: {}", e.getMessage(), e);
+            throw new AbstractException(messagesUtil.getMessage("RFQ_LINE_COMPLETE_FAIL"));
+        }
+    }
+
+    @Override
     public void respondToOrderLine(String lineId, SupplierResponseOnOrderDTO responseDto) {
         try {
             log.info("Supplier responding to RFQ line {}", lineId);
@@ -245,9 +371,12 @@ public class RFQServiceImpl implements IRFQService {
                         messagesUtil.getMessage("RFQ_LINE_ALREADY_HANDLED"));
             }
 
+            // Set respondedAt timestamp
+            responseDto.setRespondedAt(LocalDateTime.now());
             line.setSupplierResponse(responseDto);
 
             line.setStatus(LineStatus.RESPONDED);
+            line.setCustomerApproved(null);
             lineRepository.save(line);
 
             // Send notification to customer about supplier response
@@ -331,6 +460,7 @@ public class RFQServiceImpl implements IRFQService {
                     .productImage(item.getImage())
                     .quantity(item.getQuantity())
                     .status(LineStatus.PENDING)
+                    .customerApproved(null)
                     .supplierResponse(null)
                     .build();
         }).toList();

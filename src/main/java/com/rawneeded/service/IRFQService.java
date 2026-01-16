@@ -26,4 +26,8 @@ public interface IRFQService {
     void respondToOrderLine(String lineId, SupplierResponseOnOrderDTO responseDto);
 
     void cancelRFQ(String orderId);
+    
+    void approveRFQLine(String lineId);
+    
+    void completeOrderLine(String lineId);
 }

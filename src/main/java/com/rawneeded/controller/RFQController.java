@@ -154,7 +154,7 @@ public class RFQController {
     @PostMapping("/line/{lineId}/respond")
     @Operation(
             summary = "Supplier respond to RFQ line",
-            description = "Supplier submits price and delivery details for an RFQ line"
+            description = "Supplier submits price, available quantity, delivery details and shipping info for an RFQ line"
     )
     public ResponseEntity<ResponsePayload> respondToRFQLine(
             @PathVariable String lineId,
@@ -168,6 +168,48 @@ public class RFQController {
                         .content(Map.of(
                                 "success", true,
                                 "message", "Supplier response submitted successfully"
+                        ))
+                        .build()
+        );
+    }
+
+    @PostMapping("/line/{lineId}/approve")
+    @Operation(
+            summary = "Customer approve RFQ line",
+            description = "Customer approves supplier response for an RFQ line"
+    )
+    public ResponseEntity<ResponsePayload> approveRFQLine(
+            @PathVariable String lineId) {
+
+        rfqService.approveRFQLine(lineId);
+
+        return ResponseEntity.ok(
+                ResponsePayload.builder()
+                        .date(LocalDateTime.now())
+                        .content(Map.of(
+                                "success", true,
+                                "message", "RFQ line approved successfully"
+                        ))
+                        .build()
+        );
+    }
+
+    @PostMapping("/line/{lineId}/complete")
+    @Operation(
+            summary = "Supplier complete order line",
+            description = "Supplier marks order line as completed and updates product stock"
+    )
+    public ResponseEntity<ResponsePayload> completeOrderLine(
+            @PathVariable String lineId) {
+
+        rfqService.completeOrderLine(lineId);
+
+        return ResponseEntity.ok(
+                ResponsePayload.builder()
+                        .date(LocalDateTime.now())
+                        .content(Map.of(
+                                "success", true,
+                                "message", "Order line completed and stock updated successfully"
                         ))
                         .build()
         );

@@ -9,5 +9,7 @@ import lombok.NoArgsConstructor;
 public enum LineStatus {
     PENDING,
     RESPONDED,
-    REJECTED
+    APPROVED,
+    REJECTED,
+    COMPLETED
 }

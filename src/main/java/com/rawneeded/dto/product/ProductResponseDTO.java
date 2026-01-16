@@ -18,6 +18,7 @@ public class ProductResponseDTO {
     private String supplierId;
     private String supplierName;
     private boolean inStock;
+    private Integer stockQuantity;
     private CategoryResponseDto category;
     private SubCategoryResponseDto subCategory;
     private String image;
