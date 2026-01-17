@@ -19,4 +19,5 @@ public class SupplierResponseOnOrderDTO {
     private LocalDateTime respondedAt;
     private float availableQuantity;
     private String shippingInfo;
+    private String phoneNumber;
 }

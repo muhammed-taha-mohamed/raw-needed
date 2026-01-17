@@ -135,7 +135,7 @@ public class RFQController {
             summary = "Get supplier pending RFQ lines",
             description = "Fetch all pending RFQ lines for a supplier"
     )
-    public ResponseEntity<ResponsePayload> getSupplierLines(Pageable pageable , @RequestParam LineStatus status) {
+    public ResponseEntity<ResponsePayload> getSupplierLines(Pageable pageable , @RequestParam(required = false) LineStatus status) {
 
         Page<RFQOrderLineResponseDto> lines =
                 rfqService.getSupplierLines(pageable,status);

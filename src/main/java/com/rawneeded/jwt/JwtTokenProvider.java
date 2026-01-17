@@ -31,6 +31,7 @@ import java.util.Date;
                 .claim("email",dto.getEmail())
                 .claim("role", dto.getRole())
                 .claim("ownerId", dto.getOwnerId()!=null?dto.getOwnerId():dto.getId())
+                .claim("phoneNumber", dto.getPhoneNumber())
                 .setSubject(dto.getName())
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
@@ -90,6 +91,12 @@ import java.util.Date;
         return getClaimFromToken(token, "id");
     }
 
+    public String getPhoneNumberFromToken(String token) {
+        if (token.startsWith("bearer ") || token.startsWith("Bearer ")) {
+            return getClaimFromToken(token.substring(7), "phoneNumber");
+        }
+        return getClaimFromToken(token, "phoneNumber");
+    }
     public String getOwnerIdFromToken(String token) {
         if (token.startsWith("bearer ") || token.startsWith("Bearer ")) {
             return getClaimFromToken(token.substring(7), "ownerId");

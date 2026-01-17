@@ -311,7 +311,7 @@ public class RFQServiceImpl implements IRFQService {
             int newStock = product.getStockQuantity() - (int) orderedQuantity;
             
             if (newStock < 0) {
-                throw new AbstractException(messagesUtil.getMessage("INSUFFICIENT_STOCK"));
+                newStock = 0;
             }
 
             product.setStockQuantity(newStock);
@@ -362,6 +362,8 @@ public class RFQServiceImpl implements IRFQService {
         try {
             log.info("Supplier responding to RFQ line {}", lineId);
 
+            String token = messagesUtil.getAuthToken();
+
             RFQOrderLine line = lineRepository.findById(lineId)
                     .orElseThrow(() ->
                             new AbstractException(messagesUtil.getMessage("RFQ_LINE_NOT_FOUND")));
@@ -371,8 +373,9 @@ public class RFQServiceImpl implements IRFQService {
                         messagesUtil.getMessage("RFQ_LINE_ALREADY_HANDLED"));
             }
 
-            // Set respondedAt timestamp
+            // Set respondedAt timestamp && supplier phone
             responseDto.setRespondedAt(LocalDateTime.now());
+            responseDto.setPhoneNumber(tokenProvider.getPhoneNumberFromToken(token));
             line.setSupplierResponse(responseDto);
 
             line.setStatus(LineStatus.RESPONDED);

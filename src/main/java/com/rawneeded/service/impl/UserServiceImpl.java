@@ -131,6 +131,7 @@ public class UserServiceImpl implements IUserService {
                         .name(user.getName())
                         .email(user.getEmail())
                         .role(user.getRole())
+                        .phoneNumber(user.getPhoneNumber())
                         .build());
 
         UserResponseDto userInfo = userMapper.toResponseDto(user);
