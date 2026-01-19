@@ -196,9 +196,9 @@ public class RFQServiceImpl implements IRFQService {
             String ownerId = tokenProvider.getOwnerIdFromToken(token);
             Page<RFQOrder> orders;
             if (status == null) {
-                orders = orderRepository.findByOwnerId(ownerId, pageable);
+                orders = orderRepository.findByOwnerIdOrderByCreatedAtDesc(ownerId, pageable);
             } else {
-                orders = orderRepository.findByOwnerIdAndStatus(ownerId, status, pageable);
+                orders = orderRepository.findByOwnerIdAndStatusOrderByCreatedAtDesc(ownerId, status, pageable);
             }
             return orders.map(rfqMapper::toOrderResponseDto);
         } catch (Exception e) {
@@ -428,13 +428,18 @@ public class RFQServiceImpl implements IRFQService {
         boolean anyResponded = lines.stream()
                 .anyMatch(l -> l.getStatus() == LineStatus.RESPONDED);
 
-        boolean allHandled = lines.stream()
-                .allMatch(l -> l.getStatus() != LineStatus.PENDING);
+        boolean allCompleted = lines.stream()
+                .allMatch(l -> l.getStatus() == LineStatus.COMPLETED);
 
-        if (allHandled) {
+        boolean allApproved = lines.stream()
+                .allMatch(l -> l.getStatus()  == LineStatus.APPROVED);
+
+        if (allApproved) {
+            order.setStatus(OrderStatus.UNDER_CONFIRMATION);
+        } else if (allCompleted) {
             order.setStatus(OrderStatus.COMPLETED);
         } else if (anyResponded) {
-            order.setStatus(OrderStatus.PARTIALLY_RESPONDED);
+            order.setStatus(OrderStatus.NEGOTIATING);
         } else {
             order.setStatus(OrderStatus.NEW);
         }

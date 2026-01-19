@@ -42,15 +42,15 @@ public class AdminDashboardServiceImpl implements IAdminDashboardService {
         log.info("Getting dashboard stats for admin user: {}", userId);
         
         // Get all orders for this user
-        List<RFQOrder> allOrders = orderRepository.findByUserId(userId);
+        List<RFQOrder> allOrders = orderRepository.findByUserIdOrderByCreatedAtDesc(userId);
         
         // Calculate basic statistics
         long totalOrders = allOrders.size();
         long pendingOrders = allOrders.stream()
-                .filter(o -> o.getStatus() == OrderStatus.NEW || o.getStatus() == OrderStatus.PARTIALLY_RESPONDED)
+                .filter(o -> o.getStatus() == OrderStatus.NEW || o.getStatus() == OrderStatus.NEGOTIATING)
                 .count();
         long sentOrders = allOrders.stream()
-                .filter(o -> o.getStatus() == OrderStatus.NEW || o.getStatus() == OrderStatus.PARTIALLY_RESPONDED || o.getStatus() == OrderStatus.COMPLETED)
+                .filter(o -> o.getStatus() == OrderStatus.NEW || o.getStatus() == OrderStatus.NEGOTIATING || o.getStatus() == OrderStatus.COMPLETED)
                 .count();
         long completedOrders = allOrders.stream()
                 .filter(o -> o.getStatus() == OrderStatus.COMPLETED)

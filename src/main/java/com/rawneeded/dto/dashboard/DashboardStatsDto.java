@@ -15,10 +15,14 @@ public class DashboardStatsDto {
     // Overall Statistics
     private long totalOrders;
     private long pendingOrders;
-    private long sentOrders;
+    private long negotiatingOrders;
     private long completedOrders;
     private long cancelledOrders;
-    
+    private long underConfirmationOrders;
+
+
+    private long sentOrders;
+
     // Monthly Statistics
     private List<MonthlyOrderStats> monthlyStats;
     

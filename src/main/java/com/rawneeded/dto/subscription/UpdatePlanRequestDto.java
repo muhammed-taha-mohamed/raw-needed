@@ -32,4 +32,6 @@ public class UpdatePlanRequestDto {
     private List<String> features;
     
     private Boolean exclusive;
+    
+    private Boolean hasAdvertisements;
 }

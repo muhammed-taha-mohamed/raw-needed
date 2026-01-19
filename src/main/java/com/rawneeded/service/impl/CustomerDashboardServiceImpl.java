@@ -42,22 +42,33 @@ public class CustomerDashboardServiceImpl implements ICustomerDashboardService {
         log.info("Getting dashboard stats for customer owner: {}", ownerId);
         
         // Get all orders for this customer
-        List<RFQOrder> allOrders = orderRepository.findByOwnerId(ownerId);
+        List<RFQOrder> allOrders = orderRepository.findByOwnerIdOrderByCreatedAtDesc(ownerId);
         
         // Calculate basic statistics
         long totalOrders = allOrders.size();
+
         long pendingOrders = allOrders.stream()
-                .filter(o -> o.getStatus() == OrderStatus.NEW || o.getStatus() == OrderStatus.PARTIALLY_RESPONDED)
+                .filter(o -> o.getStatus() == OrderStatus.NEW)
                 .count();
-        long sentOrders = allOrders.stream()
-                .filter(o -> o.getStatus() == OrderStatus.NEW || o.getStatus() == OrderStatus.PARTIALLY_RESPONDED || o.getStatus() == OrderStatus.COMPLETED)
+
+        long negotiatingOrders = allOrders.stream()
+                .filter(o -> o.getStatus() == OrderStatus.NEGOTIATING)
                 .count();
+
+
         long completedOrders = allOrders.stream()
                 .filter(o -> o.getStatus() == OrderStatus.COMPLETED)
                 .count();
+
+        long underConfirmationOrders = allOrders.stream()
+                .filter(o -> o.getStatus() == OrderStatus.UNDER_CONFIRMATION)
+                .count();
+
         long cancelledOrders = allOrders.stream()
                 .filter(o -> o.getStatus() == OrderStatus.CANCELLED)
                 .count();
+
+
         
         // Get all order lines for this customer's orders
         List<String> orderIds = allOrders.stream().map(RFQOrder::getId).toList();
@@ -67,13 +78,14 @@ public class CustomerDashboardServiceImpl implements ICustomerDashboardService {
         }
         
         long totalOrderLines = allOrderLines.size();
+
         long pendingOrderLines = allOrderLines.stream()
                 .filter(l -> l.getStatus() == LineStatus.PENDING)
                 .count();
         long respondedOrderLines = allOrderLines.stream()
                 .filter(l -> l.getStatus() == LineStatus.RESPONDED)
                 .count();
-        
+
         // Calculate monthly statistics
         List<MonthlyOrderStats> monthlyStats = calculateMonthlyStats(allOrders);
         
@@ -99,7 +111,8 @@ public class CustomerDashboardServiceImpl implements ICustomerDashboardService {
         return DashboardStatsDto.builder()
                 .totalOrders(totalOrders)
                 .pendingOrders(pendingOrders)
-                .sentOrders(sentOrders)
+                .underConfirmationOrders(underConfirmationOrders)
+                .negotiatingOrders(negotiatingOrders)
                 .completedOrders(completedOrders)
                 .cancelledOrders(cancelledOrders)
                 .monthlyStats(monthlyStats)

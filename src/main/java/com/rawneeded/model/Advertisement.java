@@ -1,6 +1,5 @@
 package com.rawneeded.model;
 
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -8,27 +7,26 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.time.LocalDateTime;
+
+@Document
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
-@Document
 @Builder
-public class Product {
+public class Advertisement {
     private String id;
-    private String name;
-    private String origin;
+    
     @DBRef
-    private User supplier;
-    private String contactPersonName;
-    private String contactPersonPhoneNumber;
-    private boolean inStock;
-    private Integer stockQuantity;
-    @DBRef
-    private Category category;
-    @DBRef
-    private SubCategory subCategory;
+    private User user;
+    private String userId;
+    
     private String image;
-
-    private String unit;
-
+    private String text;
+    
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    
+    @Builder.Default
+    private boolean active = true;
 }

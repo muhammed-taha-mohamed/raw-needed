@@ -7,7 +7,8 @@ import lombok.Getter;
 @Getter
 public enum OrderStatus {
     NEW,
-    PARTIALLY_RESPONDED,
+    NEGOTIATING,
+    UNDER_CONFIRMATION,
     COMPLETED,
     CANCELLED
 }

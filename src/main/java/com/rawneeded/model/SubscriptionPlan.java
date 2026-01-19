@@ -26,5 +26,6 @@ public class SubscriptionPlan {
     private List<String> features;
     private boolean exclusive = false;
     private boolean active = true;
+    private boolean hasAdvertisements = false;
 }
 

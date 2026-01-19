@@ -15,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -83,6 +82,9 @@ public class PlanServiceImpl implements IPlanService {
             plan.setActive(true);
             if (requestDto.getExclusive() != null) {
                 plan.setExclusive(requestDto.getExclusive());
+            }
+            if (requestDto.getHasAdvertisements() != null) {
+                plan.setHasAdvertisements(requestDto.getHasAdvertisements());
             }
             plan = subscriptionPlanRepository.save(plan);
             log.info("Subscription plan created successfully with id: {}", plan.getId());
@@ -178,3 +180,6 @@ public class PlanServiceImpl implements IPlanService {
 
 
 }
+
+
+

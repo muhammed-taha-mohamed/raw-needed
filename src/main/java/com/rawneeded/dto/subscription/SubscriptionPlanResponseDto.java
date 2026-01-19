@@ -25,5 +25,6 @@ public class SubscriptionPlanResponseDto {
     private List<String> features;
     private boolean exclusive;
     private boolean active;
+    private boolean hasAdvertisements;
 }
 
