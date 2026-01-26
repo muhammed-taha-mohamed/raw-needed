@@ -34,6 +34,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.rawneeded.enumeration.TemplateName.FORGET_PASSWORD_OTP;
@@ -107,6 +108,8 @@ public class UserServiceImpl implements IUserService {
 
             return userMapper.toResponseDto(user);
 
+        }catch (AbstractException e){
+            throw e;
         } catch (DuplicateKeyException e) {
             throw new AbstractException(messagesUtil.getMessage("USER_ALREADY_EXISTS"));
         } catch (Exception e) {
@@ -164,13 +167,16 @@ public class UserServiceImpl implements IUserService {
                         MailDto.builder()
                                 .toEmail(requestDto.getEmail())
                                 .subject(subject)
+                                .model(Map.of("code", otp))
                                 .templateName(FORGET_PASSWORD_OTP)
                                 .build()
                 );
             }).start();
 
             log.info("OTP sent successfully to email: {}", requestDto.getEmail());
-        } catch (Exception e) {
+        }catch (AbstractException e){
+            throw e;
+        }catch (Exception e) {
             log.error("Error sending OTP: {}", e.getMessage());
             throw new AbstractException(messagesUtil.getMessage("OTP_SEND_FAIL"));
         }
@@ -192,6 +198,8 @@ public class UserServiceImpl implements IUserService {
             }
             log.error("Failed to update password by OTP for email: {}. OTP not valid.", dto.getEmail());
             throw new IllegalArgumentException(messagesUtil.getMessage("OTP_NOT_VALID"));
+        }catch (AbstractException e){
+            throw e;
         } catch (Exception e) {
             log.error("Error occurred while updating password by OTP for email {}: {}", dto.getEmail(), e.getMessage());
             throw new AbstractException(e.getMessage());
@@ -240,6 +248,8 @@ public class UserServiceImpl implements IUserService {
 
             log.info("Staff member created successfully: {}", staff.getId());
             return userMapper.toResponseDto(staff);
+        }catch (AbstractException e){
+            throw e;
         } catch ( Exception e) {
             throw new AbstractException(e.getMessage());
         }
@@ -287,6 +297,8 @@ public class UserServiceImpl implements IUserService {
             user = userRepository.save(user);
             return userMapper.toResponseDto(user);
 
+        }catch (AbstractException e){
+            throw e;
         } catch (DuplicateKeyException e) {
             throw new AbstractException(messagesUtil.getMessage("USER_ALREADY_EXISTS"));
         } catch (Exception e) {
@@ -329,6 +341,8 @@ public class UserServiceImpl implements IUserService {
             return userMapper.toSupplierResponsePages(
                     userRepository.findAllByRole(Role.SUPPLIER_OWNER, pageable)
             );
+        }catch (AbstractException e){
+            throw e;
         } catch (Exception e) {
             log.error("Failed to get suppliers: {}", e.getMessage());
             throw new AbstractException(e.getMessage());
@@ -346,6 +360,8 @@ public class UserServiceImpl implements IUserService {
             return userMapper.toSupplierResponseList(
                     userRepository.findAllByRole(Role.SUPPLIER_OWNER)
             );
+        }catch (AbstractException e){
+            throw e;
         } catch (Exception e) {
             log.error("Failed to get suppliers: {}", e.getMessage());
             throw new AbstractException(e.getMessage());

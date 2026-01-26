@@ -1,9 +1,11 @@
 package com.rawneeded.service.impl;
 
+import com.rawneeded.dto.MailDto;
 import com.rawneeded.dto.RFQ.CreateRFQRequest;
 import com.rawneeded.dto.RFQ.RFQOrderLineResponseDto;
 import com.rawneeded.dto.RFQ.RFQOrderResponseDto;
 import com.rawneeded.dto.product.CartItemDTO;
+import com.rawneeded.enumeration.TemplateName;
 import com.rawneeded.enumeration.LineStatus;
 import com.rawneeded.enumeration.OrderStatus;
 import com.rawneeded.enumeration.Role;
@@ -30,7 +32,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.rawneeded.util.OtpUtil.generateOrderNumber;
 
@@ -47,7 +52,7 @@ public class RFQServiceImpl implements IRFQService {
     private final RFQMapper rfqMapper;
     private final MessagesUtil messagesUtil;
     private final INotificationService notificationService;
-
+    private final NotificationService emailService;
 
     // ===================== CLIENT =====================
 
@@ -82,23 +87,56 @@ public class RFQServiceImpl implements IRFQService {
 
             lineRepository.saveAll(lines);
 
-            // Send notifications to suppliers about new order
-            lines.forEach(line -> {
-                try {
-                    notificationService.sendNotificationToSupplier(
-                            line.getSupplierId(),
-                            NotificationType.ORDER_CREATED,
-                            "NOTIFICATION_ORDER_CREATED_TITLE",
-                            "NOTIFICATION_ORDER_CREATED_MESSAGE",
-                            savedOrder.getId(),
-                            "RFQ_ORDER",
-                            line.getProductName(),
-                            line.getQuantity()
-                    );
-                } catch (Exception e) {
-                    log.error("Failed to send notification to supplier {}: {}", line.getSupplierId(), e.getMessage());
+            // Send notifications and emails to suppliers about new order
+            Map<String, List<RFQOrderLine>> bySupplier = lines.stream().collect(Collectors.groupingBy(RFQOrderLine::getSupplierId));
+            for (Map.Entry<String, List<RFQOrderLine>> e : bySupplier.entrySet()) {
+                String supplierId = e.getKey();
+                List<RFQOrderLine> supplierLines = e.getValue();
+                User supplier = userRepository.findById(supplierId).orElse(null);
+                if (supplier != null && supplier.getEmail() != null && !supplier.getEmail().isEmpty()) {
+                    List<Map<String, Object>> items = supplierLines.stream()
+                            .map(l -> {
+                                Map<String, Object> m = new HashMap<>();
+                                m.put("productName", l.getProductName());
+                                m.put("quantity", l.getQuantity());
+                                return m;
+                            })
+                            .collect(Collectors.toList());
+                    try {
+                        MailDto mail = MailDto.builder()
+                                .toEmail(supplier.getEmail())
+                                .subject(messagesUtil.getMessage("EMAIL_SUBJECT_ORDER_CREATED"))
+                                .templateName(TemplateName.ORDER_CREATED_SUPPLIER)
+                                .model(Map.of(
+                                        "supplierName", supplier.getName() != null ? supplier.getName() : "",
+                                        "orderNumber", savedOrder.getOrderNumber(),
+                                        "customerName", creator.getName() != null ? creator.getName() : "",
+                                        "customerOrg", creator.getOrganizationName() != null ? creator.getOrganizationName() : "",
+                                        "items", items
+                                ))
+                                .build();
+                        emailService.sendEmail(mail);
+                    } catch (Exception ex) {
+                        log.error("Failed to send order-created email to supplier {}: {}", supplierId, ex.getMessage());
+                    }
                 }
-            });
+                for (RFQOrderLine line : supplierLines) {
+                    try {
+                        notificationService.sendNotificationToSupplier(
+                                line.getSupplierId(),
+                                NotificationType.ORDER_CREATED,
+                                "NOTIFICATION_ORDER_CREATED_TITLE",
+                                "NOTIFICATION_ORDER_CREATED_MESSAGE",
+                                savedOrder.getId(),
+                                "RFQ_ORDER",
+                                line.getProductName(),
+                                line.getQuantity()
+                        );
+                    } catch (Exception ex) {
+                        log.error("Failed to send notification to supplier {}: {}", line.getSupplierId(), ex.getMessage());
+                    }
+                }
+            }
 
             log.info("RFQ created successfully with id {}", order.getId());
 
@@ -162,9 +200,9 @@ public class RFQServiceImpl implements IRFQService {
             order.setStatus(OrderStatus.CANCELLED);
             orderRepository.save(order);
 
-            // Send notifications to suppliers about order cancellation
+            // Send notifications and emails to suppliers about order cancellation
             List<RFQOrderLine> lines = lineRepository.findByOrderId(orderId);
-            lines.forEach(line -> {
+            for (RFQOrderLine line : lines) {
                 try {
                     notificationService.sendNotificationToSupplier(
                             line.getSupplierId(),
@@ -175,11 +213,23 @@ public class RFQServiceImpl implements IRFQService {
                             "RFQ_ORDER",
                             order.getOrderNumber()
                     );
+                    User supplier = userRepository.findById(line.getSupplierId()).orElse(null);
+                    if (supplier != null && supplier.getEmail() != null && !supplier.getEmail().isEmpty()) {
+                        emailService.sendEmail(MailDto.builder()
+                                .toEmail(supplier.getEmail())
+                                .subject(messagesUtil.getMessage("EMAIL_SUBJECT_ORDER_CANCELLED"))
+                                .templateName(TemplateName.ORDER_CANCELLED_SUPPLIER)
+                                .model(Map.of(
+                                        "supplierName", supplier.getName() != null ? supplier.getName() : "",
+                                        "orderNumber", order.getOrderNumber()
+                                ))
+                                .build());
+                    }
                 } catch (Exception e) {
-                    log.error("Failed to send cancellation notification to supplier {}: {}", 
+                    log.error("Failed to send cancellation notification/email to supplier {}: {}",
                             line.getSupplierId(), e.getMessage());
                 }
-            });
+            }
 
         } catch (AbstractException e) {
             throw e;
@@ -257,7 +307,7 @@ public class RFQServiceImpl implements IRFQService {
             line.setStatus(LineStatus.APPROVED);
             lineRepository.save(line);
 
-            // Send notification to supplier about customer approval
+            // Send notification and email to supplier about customer approval
             try {
                 notificationService.sendNotificationToSupplier(
                         line.getSupplierId(),
@@ -268,8 +318,20 @@ public class RFQServiceImpl implements IRFQService {
                         "RFQ_ORDER",
                         line.getProductName()
                 );
+                User supplier = userRepository.findById(line.getSupplierId()).orElse(null);
+                if (supplier != null && supplier.getEmail() != null && !supplier.getEmail().isEmpty()) {
+                    emailService.sendEmail(MailDto.builder()
+                            .toEmail(supplier.getEmail())
+                            .subject(messagesUtil.getMessage("EMAIL_SUBJECT_ORDER_APPROVED"))
+                            .templateName(TemplateName.ORDER_APPROVED_SUPPLIER)
+                            .model(Map.of(
+                                    "supplierName", supplier.getName() != null ? supplier.getName() : "",
+                                    "productName", line.getProductName() != null ? line.getProductName() : ""
+                            ))
+                            .build());
+                }
             } catch (Exception e) {
-                log.error("Failed to send approval notification to supplier {}: {}", 
+                log.error("Failed to send approval notification/email to supplier {}: {}",
                         line.getSupplierId(), e.getMessage());
             }
 
@@ -342,8 +404,20 @@ public class RFQServiceImpl implements IRFQService {
                         "RFQ_ORDER",
                         line.getProductName()
                 );
+                User customer = userRepository.findById(customerOwnerId).orElse(null);
+                if (customer != null && customer.getEmail() != null && !customer.getEmail().isEmpty()) {
+                    emailService.sendEmail(MailDto.builder()
+                            .toEmail(customer.getEmail())
+                            .subject(messagesUtil.getMessage("EMAIL_SUBJECT_ORDER_COMPLETED"))
+                            .templateName(TemplateName.ORDER_COMPLETED_CUSTOMER)
+                            .model(Map.of(
+                                    "customerName", customer.getName() != null ? customer.getName() : "",
+                                    "productName", line.getProductName() != null ? line.getProductName() : ""
+                            ))
+                            .build());
+                }
             } catch (Exception e) {
-                log.error("Failed to send completion notification to customer {}: {}", 
+                log.error("Failed to send completion notification/email to customer {}: {}",
                         customerOwnerId, e.getMessage());
             }
 
@@ -400,8 +474,21 @@ public class RFQServiceImpl implements IRFQService {
                         line.getSupplierName(),
                         line.getProductName()
                 );
+                User customer = userRepository.findById(customerOwnerId).orElse(null);
+                if (customer != null && customer.getEmail() != null && !customer.getEmail().isEmpty()) {
+                    emailService.sendEmail(MailDto.builder()
+                            .toEmail(customer.getEmail())
+                            .subject(messagesUtil.getMessage("EMAIL_SUBJECT_ORDER_REPLY"))
+                            .templateName(TemplateName.ORDER_REPLY_CUSTOMER)
+                            .model(Map.of(
+                                    "customerName", customer.getName() != null ? customer.getName() : "",
+                                    "supplierName", line.getSupplierName() != null ? line.getSupplierName() : "",
+                                    "productName", line.getProductName() != null ? line.getProductName() : ""
+                            ))
+                            .build());
+                }
             } catch (Exception e) {
-                log.error("Failed to send notification to customer {}: {}", customerOwnerId, e.getMessage());
+                log.error("Failed to send notification/email to customer {}: {}", customerOwnerId, e.getMessage());
             }
 
             updateOrderStatus(line.getOrderId());

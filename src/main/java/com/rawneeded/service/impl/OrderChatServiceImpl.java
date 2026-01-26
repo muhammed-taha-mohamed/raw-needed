@@ -1,8 +1,10 @@
 package com.rawneeded.service.impl;
 
+import com.rawneeded.dto.MailDto;
 import com.rawneeded.dto.order.OrderMessageRequestDto;
 import com.rawneeded.dto.order.OrderMessageResponseDto;
 import com.rawneeded.enumeration.NotificationType;
+import com.rawneeded.enumeration.TemplateName;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.jwt.JwtTokenProvider;
 import com.rawneeded.model.OrderMessage;
@@ -20,8 +22,9 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -36,6 +39,7 @@ public class OrderChatServiceImpl implements IOrderChatService {
     private final JwtTokenProvider tokenProvider;
     private final MessagesUtil messagesUtil;
     private final INotificationService notificationService;
+    private final NotificationService emailService;
 
     @Override
     public OrderMessageResponseDto addMessage(String orderId, OrderMessageRequestDto requestDto) {
@@ -61,8 +65,8 @@ public class OrderChatServiceImpl implements IOrderChatService {
 
             message = orderMessageRepository.save(message);
 
-            // Send notifications to other participants
-            sendNotificationToOtherParticipants(orderId, userId);
+            // Send notifications and emails to other participants
+            sendNotificationToOtherParticipants(orderId, userId, requestDto.getMessage(), user.getName(), user.getOrganizationName());
 
             return toResponseDto(message);
 
@@ -97,52 +101,81 @@ public class OrderChatServiceImpl implements IOrderChatService {
         }
     }
 
-    private void sendNotificationToOtherParticipants(String orderId, String senderUserId) {
+    private void sendNotificationToOtherParticipants(String orderId, String senderUserId,
+                                                     String messageText, String senderName, String senderOrg) {
         try {
-            // Try to find as RFQ order first
             RFQOrder order = rfqOrderRepository.findById(orderId).orElse(null);
-            
-            if (order != null) {
-                List<RFQOrderLine> lines = rfqOrderLineRepository.findByOrderId(orderId);
+            if (order == null) return;
+            List<RFQOrderLine> lines = rfqOrderLineRepository.findByOrderId(orderId);
+            String orderNumber = order.getOrderNumber() != null ? order.getOrderNumber() : orderId;
 
-                // Notify customer if supplier sent message
-                if (!order.getOwnerId().equals(senderUserId)) {
-                    notificationService.sendNotificationToUser(
-                            order.getOwnerId(),
-                            NotificationType.GENERAL,
-                            "NOTIFICATION_ORDER_MESSAGE_TITLE",
-                            "NOTIFICATION_ORDER_MESSAGE_MESSAGE",
-                            orderId,
-                            "ORDER"
-                    );
-                }
-
-                // Notify suppliers if customer sent message
-                if (order.getOwnerId().equals(senderUserId)) {
-                    lines.forEach(line -> {
-                        if (!line.getSupplierId().equals(senderUserId)) {
-                            try {
-                                notificationService.sendNotificationToSupplier(
-                                        line.getSupplierId(),
-                                        NotificationType.GENERAL,
-                                        "NOTIFICATION_ORDER_MESSAGE_TITLE",
-                                        "NOTIFICATION_ORDER_MESSAGE_MESSAGE",
-                                        orderId,
-                                        "ORDER",
-                                        order.getOrderNumber()
-                                );
-                            } catch (Exception e) {
-                                log.error("Failed to send notification to supplier {}: {}", 
-                                        line.getSupplierId(), e.getMessage());
-                            }
-                        }
-                    });
+            // Notify and email customer if supplier sent message
+            if (!order.getOwnerId().equals(senderUserId)) {
+                notificationService.sendNotificationToUser(
+                        order.getOwnerId(),
+                        NotificationType.GENERAL,
+                        "NOTIFICATION_ORDER_MESSAGE_TITLE",
+                        "NOTIFICATION_ORDER_MESSAGE_MESSAGE",
+                        orderId,
+                        "ORDER"
+                );
+                User customer = userRepository.findById(order.getOwnerId()).orElse(null);
+                if (customer != null && customer.getEmail() != null && !customer.getEmail().isEmpty()) {
+                    try {
+                        emailService.sendEmail(MailDto.builder()
+                                .toEmail(customer.getEmail())
+                                .subject(messagesUtil.getMessage("EMAIL_SUBJECT_ORDER_MESSAGE"))
+                                .templateName(TemplateName.ORDER_MESSAGE)
+                                .model(Map.of(
+                                        "recipientName", customer.getName() != null ? customer.getName() : "",
+                                        "senderName", senderName != null ? senderName : "",
+                                        "senderOrg", senderOrg != null ? senderOrg : "",
+                                        "orderNumber", orderNumber,
+                                        "messageText", messageText != null ? messageText : ""
+                                ))
+                                .build());
+                    } catch (Exception e) {
+                        log.error("Failed to send order-message email to customer: {}", e.getMessage());
+                    }
                 }
             }
-            // For other order types, notifications can be added similarly
+
+            // Notify and email suppliers if customer sent message
+            if (order.getOwnerId().equals(senderUserId)) {
+                for (RFQOrderLine line : lines) {
+                    if (line.getSupplierId().equals(senderUserId)) continue;
+                    try {
+                        notificationService.sendNotificationToSupplier(
+                                line.getSupplierId(),
+                                NotificationType.GENERAL,
+                                "NOTIFICATION_ORDER_MESSAGE_TITLE",
+                                "NOTIFICATION_ORDER_MESSAGE_MESSAGE",
+                                orderId,
+                                "ORDER",
+                                orderNumber
+                        );
+                        User supplier = userRepository.findById(line.getSupplierId()).orElse(null);
+                        if (supplier != null && supplier.getEmail() != null && !supplier.getEmail().isEmpty()) {
+                            emailService.sendEmail(MailDto.builder()
+                                    .toEmail(supplier.getEmail())
+                                    .subject(messagesUtil.getMessage("EMAIL_SUBJECT_ORDER_MESSAGE"))
+                                    .templateName(TemplateName.ORDER_MESSAGE)
+                                    .model(Map.of(
+                                            "recipientName", supplier.getName() != null ? supplier.getName() : "",
+                                            "senderName", senderName != null ? senderName : "",
+                                            "senderOrg", senderOrg != null ? senderOrg : "",
+                                            "orderNumber", orderNumber,
+                                            "messageText", messageText != null ? messageText : ""
+                                    ))
+                                    .build());
+                        }
+                    } catch (Exception e) {
+                        log.error("Failed to send notification/email to supplier {}: {}", line.getSupplierId(), e.getMessage());
+                    }
+                }
+            }
         } catch (Exception e) {
-            log.error("Error sending notifications: {}", e.getMessage());
-            // Don't throw - notification failure shouldn't break message creation
+            log.error("Error sending notifications/emails: {}", e.getMessage());
         }
     }
 

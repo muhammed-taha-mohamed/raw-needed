@@ -32,7 +32,8 @@ public class AuthorizationFilter extends OncePerRequestFilter {
             "api-docs",
             "sign-up",
             "category",
-            "image"
+            "image",
+            "dummy"
     );
     private final JwtTokenProvider jwtTokenUtil;
 

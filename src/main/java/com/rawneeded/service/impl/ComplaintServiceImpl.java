@@ -1,9 +1,11 @@
 package com.rawneeded.service.impl;
 
+import com.rawneeded.dto.MailDto;
 import com.rawneeded.dto.complaint.ComplaintMessageRequestDto;
 import com.rawneeded.dto.complaint.ComplaintMessageResponseDto;
 import com.rawneeded.dto.complaint.ComplaintResponseDto;
 import com.rawneeded.dto.complaint.CreateComplaintRequestDto;
+import com.rawneeded.enumeration.TemplateName;
 import com.rawneeded.enumeration.ComplaintStatus;
 import com.rawneeded.enumeration.Role;
 import com.rawneeded.error.exceptions.AbstractException;
@@ -26,6 +28,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -39,6 +42,7 @@ public class ComplaintServiceImpl implements IComplaintService {
     private final MessagesUtil messagesUtil;
     private final JwtTokenProvider jwtTokenProvider;
     private final INotificationService notificationService;
+    private final NotificationService emailService;
 
     @Override
     public ComplaintResponseDto createComplaint(CreateComplaintRequestDto requestDto) {
@@ -78,8 +82,8 @@ public class ComplaintServiceImpl implements IComplaintService {
 
             complaintMessageRepository.save(initialMessage);
 
-            // Send notification to all admins
-            sendNotificationToAdmins(complaint.getId(), complaint.getSubject(), user.getName());
+            // Send notification and email to all admins
+            sendNotificationToAdmins(complaint.getId(), complaint.getSubject(), complaint.getDescription(), user.getName());
 
             return mapToResponseDto(complaint);
         } catch (AbstractException e) {
@@ -217,9 +221,8 @@ public class ComplaintServiceImpl implements IComplaintService {
             complaint.setUpdatedAt(LocalDateTime.now());
             complaintRepository.save(complaint);
 
-            // Send notifications
+            // Send notifications and emails
             if (isAdmin) {
-                // Admin replied - notify the complaint owner
                 notificationService.sendNotificationToUser(
                         complaint.getUserId(),
                         NotificationType.GENERAL,
@@ -229,9 +232,24 @@ public class ComplaintServiceImpl implements IComplaintService {
                         "COMPLAINT",
                         complaint.getSubject()
                 );
+                User owner = userRepository.findById(complaint.getUserId()).orElse(null);
+                if (owner != null && owner.getEmail() != null && !owner.getEmail().isEmpty()) {
+                    try {
+                        emailService.sendEmail(MailDto.builder()
+                                .toEmail(owner.getEmail())
+                                .subject(messagesUtil.getMessage("EMAIL_SUBJECT_COMPLAINT_REPLY"))
+                                .templateName(TemplateName.COMPLAINT_REPLY_USER)
+                                .model(Map.of(
+                                        "userName", owner.getName() != null ? owner.getName() : "",
+                                        "subject", complaint.getSubject() != null ? complaint.getSubject() : ""
+                                ))
+                                .build());
+                    } catch (Exception e) {
+                        log.error("Failed to send complaint-reply email: {}", e.getMessage());
+                    }
+                }
             } else {
-                // User replied - notify all admins
-                sendNotificationToAdmins(complaintId, complaint.getSubject(), user.getName());
+                sendNotificationToAdmins(complaintId, complaint.getSubject(), complaint.getDescription(), user.getName());
             }
 
             log.info("Message added successfully");
@@ -272,7 +290,7 @@ public class ComplaintServiceImpl implements IComplaintService {
             complaint.setUpdatedAt(LocalDateTime.now());
             complaint = complaintRepository.save(complaint);
 
-            // Send notification to complaint owner if closed by admin
+            // Send notification and email to complaint owner if closed by admin
             if (isAdmin && !complaint.getUserId().equals(userId)) {
                 notificationService.sendNotificationToUser(
                         complaint.getUserId(),
@@ -283,6 +301,22 @@ public class ComplaintServiceImpl implements IComplaintService {
                         "COMPLAINT",
                         complaint.getSubject()
                 );
+                User owner = userRepository.findById(complaint.getUserId()).orElse(null);
+                if (owner != null && owner.getEmail() != null && !owner.getEmail().isEmpty()) {
+                    try {
+                        emailService.sendEmail(MailDto.builder()
+                                .toEmail(owner.getEmail())
+                                .subject(messagesUtil.getMessage("EMAIL_SUBJECT_COMPLAINT_CLOSED"))
+                                .templateName(TemplateName.COMPLAINT_CLOSED_USER)
+                                .model(Map.of(
+                                        "userName", owner.getName() != null ? owner.getName() : "",
+                                        "subject", complaint.getSubject() != null ? complaint.getSubject() : ""
+                                ))
+                                .build());
+                    } catch (Exception e) {
+                        log.error("Failed to send complaint-closed email: {}", e.getMessage());
+                    }
+                }
             }
 
             log.info("Complaint closed successfully");
@@ -329,7 +363,7 @@ public class ComplaintServiceImpl implements IComplaintService {
                 .build();
     }
 
-    private void sendNotificationToAdmins(String complaintId, String subject, String userName) {
+    private void sendNotificationToAdmins(String complaintId, String subject, String description, String userName) {
         try {
             List<User> admins = userRepository.findAllByRole(Role.SUPER_ADMIN);
             for (User admin : admins) {
@@ -343,10 +377,25 @@ public class ComplaintServiceImpl implements IComplaintService {
                         userName,
                         subject
                 );
+                if (admin.getEmail() != null && !admin.getEmail().isEmpty()) {
+                    try {
+                        emailService.sendEmail(MailDto.builder()
+                                .toEmail(admin.getEmail())
+                                .subject(messagesUtil.getMessage("EMAIL_SUBJECT_COMPLAINT_CREATED"))
+                                .templateName(TemplateName.COMPLAINT_CREATED_ADMIN)
+                                .model(Map.of(
+                                        "userName", userName != null ? userName : "",
+                                        "subject", subject != null ? subject : "",
+                                        "description", description != null ? description : ""
+                                ))
+                                .build());
+                    } catch (Exception e) {
+                        log.error("Failed to send complaint-created email to admin: {}", e.getMessage());
+                    }
+                }
             }
         } catch (Exception e) {
-            log.error("Error sending notifications to admins: {}", e.getMessage());
-            // Don't throw exception, just log the error
+            log.error("Error sending notifications/emails to admins: {}", e.getMessage());
         }
     }
 }
