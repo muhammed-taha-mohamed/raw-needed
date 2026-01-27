@@ -124,14 +124,20 @@ public class ProductServiceImpl implements IProductService {
             }
 
             if (filterDTO.getOrigin() != null && !filterDTO.getOrigin().isEmpty()) {
-                criteriaList.add(Criteria.where("origin").is(filterDTO.getOrigin()));
+                criteriaList.add(Criteria.where("origin").regex(filterDTO.getOrigin(), "i"));
             }
 
             if (filterDTO.getSupplierId() != null && !filterDTO.getSupplierId().isEmpty()) {
                 criteriaList.add(Criteria.where("supplier.$id").is(new ObjectId(filterDTO.getSupplierId())));
             }
 
+            if (filterDTO.getCategoryId() != null && !filterDTO.getCategoryId().isEmpty()) {
+                criteriaList.add(Criteria.where("category.$id").is(new ObjectId(filterDTO.getCategoryId())));
+            }
 
+            if (filterDTO.getSubCategoryId() != null && !filterDTO.getSubCategoryId().isEmpty()) {
+                criteriaList.add(Criteria.where("subCategory.$id").is(new ObjectId(filterDTO.getSubCategoryId())));
+            }
             Query query = new Query();
             if (!criteriaList.isEmpty()) {
                 query.addCriteria(new Criteria().andOperator(criteriaList.toArray(new Criteria[0])));

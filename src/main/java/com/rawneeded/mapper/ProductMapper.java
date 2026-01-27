@@ -53,6 +53,7 @@ public interface ProductMapper {
             return null;
         }
         return SubCategoryResponseDto.builder()
+                .id(subCategory.getId())
                 .name(subCategory.getName())
                 .arabicName(subCategory.getArabicName())
                 .build();
