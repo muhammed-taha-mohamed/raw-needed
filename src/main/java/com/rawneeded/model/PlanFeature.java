@@ -12,5 +12,5 @@ import lombok.NoArgsConstructor;
 @Builder
 public class PlanFeature {
     private PlanFeatures feature;
-    private Double price; // سعر الفيتشر
+    private Double price;
 }
