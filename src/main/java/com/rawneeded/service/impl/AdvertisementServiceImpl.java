@@ -44,9 +44,7 @@ public class AdvertisementServiceImpl implements IAdvertisementService {
 
             // Check if a user has a subscription with advertisements enabled
             UserSubscription subscription = user.getSubscription();
-            if (subscription == null || subscription.getPlan() == null || !subscription.getPlan().isHasAdvertisements()) {
-                throw new AbstractException(messagesUtil.getMessage("ADVERTISEMENT_PLAN_NOT_ALLOWED"));
-            }
+
 
             Advertisement advertisement = Advertisement.builder()
                     .user(user)

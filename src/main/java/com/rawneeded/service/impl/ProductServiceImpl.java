@@ -14,6 +14,7 @@ import com.rawneeded.model.User;
 import com.rawneeded.repository.CategoryRepository;
 import com.rawneeded.repository.ProductRepository;
 import com.rawneeded.service.IProductService;
+import com.rawneeded.service.IUserSubscriptionService;
 import com.rawneeded.util.MessagesUtil;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +45,7 @@ public class ProductServiceImpl implements IProductService {
     private final MongoTemplate mongoTemplate;
     private final CategoryRepository categoryRepository;
     private final JwtTokenProvider tokenProvider;
+    private final IUserSubscriptionService userSubscriptionService;
 
 
     @Override
@@ -111,10 +113,20 @@ public class ProductServiceImpl implements IProductService {
 
             String token = messagesUtil.getAuthToken();
             Role role = tokenProvider.getRoleFromToken(token);
+            String userId = tokenProvider.getOwnerIdFromToken(token);
+
+            // Check if user is customer or customer staff - need to deduct search
+            if (role == Role.CUSTOMER_OWNER || role == Role.CUSTOMER_STAFF) {
+                // Deduct search and add points
+                boolean canSearch = userSubscriptionService.deductSearchAndAddPoints(userId);
+                if (!canSearch) {
+                    throw new AbstractException(messagesUtil.getMessage("NO_SEARCHES_OR_POINTS_AVAILABLE"));
+                }
+            }
 
             // if user is supplier then set supplierId from token
             if(role == Role.SUPPLIER_OWNER || role == Role.SUPPLIER_STAFF) {
-                filterDTO.setSupplierId(tokenProvider.getOwnerIdFromToken(token));
+                filterDTO.setSupplierId(userId);
             }
 
             List<Criteria> criteriaList = new ArrayList<>();

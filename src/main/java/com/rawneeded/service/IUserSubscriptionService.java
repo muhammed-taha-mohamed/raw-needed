@@ -26,4 +26,7 @@ public interface IUserSubscriptionService {
     UserSubscriptionResponseDto approveUserSubscription(String userSubscriptionId);
 
     UserSubscriptionResponseDto rejectUserSubscription(String userSubscriptionId, String reason);
+    
+    // Deduct search and add points for customer
+    boolean deductSearchAndAddPoints(String userId);
 }

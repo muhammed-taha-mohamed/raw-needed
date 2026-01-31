@@ -30,6 +30,11 @@ public class UserSubscription {
     private int usedUsers;
     private int remainingUsers;
     
+    // For Customer plans: Product searches
+    private Integer numberOfSearches; // Total searches purchased
+    private Integer remainingSearches; // Remaining searches
+    private Integer points; // Points earned from searches
+    
     private double total;
     private double discount;
     private double finalPrice;

@@ -18,14 +18,22 @@ import java.util.List;
 public class SubscriptionPlan {
     private String id;
     private String name;
-    private double pricePerUser;
+    private double pricePerUser; // Base subscription price per user
     private String description;
     private BillingFrequency billingFrequency;
     private List<SpecialOffer> specialOffers;
     private PlanType planType;
-    private List<String> features;
+    
+    // Features list with prices
+    private List<PlanFeature> features;
+    
+    // For Customer plans: Product searches configuration
+    private ProductSearchesConfig productSearchesConfig;
+    
+    // For Supplier plans: Base subscription price
+    private Double baseSubscriptionPrice;
+    
     private boolean exclusive = false;
     private boolean active = true;
-    private boolean hasAdvertisements = false;
 }
 

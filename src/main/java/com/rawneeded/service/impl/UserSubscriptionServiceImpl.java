@@ -6,10 +6,14 @@ import com.rawneeded.dto.subscription.UserSubscriptionRequestDto;
 import com.rawneeded.dto.subscription.UserSubscriptionResponseDto;
 import com.rawneeded.enumeration.AccountStatus;
 import com.rawneeded.enumeration.BillingFrequency;
+import com.rawneeded.enumeration.PlanFeatures;
+import com.rawneeded.enumeration.PlanType;
 import com.rawneeded.enumeration.UserSubscriptionStatus;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.jwt.JwtTokenProvider;
 import com.rawneeded.mapper.UserSubscriptionMapper;
+import com.rawneeded.model.PlanFeature;
+import com.rawneeded.model.ProductSearchesConfig;
 import com.rawneeded.model.SpecialOffer;
 import com.rawneeded.model.SubscriptionPlan;
 import com.rawneeded.model.User;
@@ -57,11 +61,61 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_SUB_PLAN_NOT_FOUND")));
 
             int numberOfUsers = requestDto.getNumberOfUsers();
-            double pricePerUser = plan.getPricePerUser();
-            double total = pricePerUser * numberOfUsers;
+            double basePrice = 0.0;
+            double searchesPrice = 0.0;
+            double featuresPrice = 0.0;
+            
+            // Calculate base price based on plan type
+            if (plan.getPlanType() == PlanType.SUPPLIER) {
+                // For suppliers: base subscription price
+                basePrice = plan.getBaseSubscriptionPrice() != null ? plan.getBaseSubscriptionPrice() : 0.0;
+            } else if (plan.getPlanType() == PlanType.CUSTOMER) {
+                // For customers: price per user
+                basePrice = plan.getPricePerUser() * numberOfUsers;
+                
+                // Calculate product searches price if provided
+                if (requestDto.getNumberOfSearches() != null && plan.getProductSearchesConfig() != null) {
+                    Integer numberOfSearches = requestDto.getNumberOfSearches();
+                    ProductSearchesConfig config = plan.getProductSearchesConfig();
+                    
+                    // Validate searches count
+                    if (config.getUnlimited() != null && config.getUnlimited()) {
+                        // Unlimited searches - use a fixed price or 0
+                        searchesPrice = config.getPricePerSearch() != null ? config.getPricePerSearch() : 0.0;
+                    } else if (config.getFrom() != null && config.getTo() != null) {
+                        // Validate range
+                        if (numberOfSearches < config.getFrom() || numberOfSearches > config.getTo()) {
+                            throw new AbstractException("Number of searches must be between " + config.getFrom() + " and " + config.getTo());
+                        }
+                        searchesPrice = numberOfSearches * (config.getPricePerSearch() != null ? config.getPricePerSearch() : 0.0);
+                    } else if (config.getPricePerSearch() != null) {
+                        searchesPrice = numberOfSearches * config.getPricePerSearch();
+                    }
+                }
+            } else {
+                // For BOTH type
+                basePrice = plan.getPricePerUser() * numberOfUsers;
+            }
+            
+            // Calculate features price
+            if (requestDto.getSelectedFeatures() != null && !requestDto.getSelectedFeatures().isEmpty() 
+                    && plan.getFeatures() != null && !plan.getFeatures().isEmpty()) {
+                for (PlanFeatures selectedFeature : requestDto.getSelectedFeatures()) {
+                    // Find the feature in plan's features list
+                    Optional<PlanFeature> planFeature = plan.getFeatures().stream()
+                            .filter(f -> f.getFeature() == selectedFeature)
+                            .findFirst();
+                    
+                    if (planFeature.isPresent() && planFeature.get().getPrice() != null) {
+                        featuresPrice += planFeature.get().getPrice();
+                    }
+                }
+            }
+            
+            double total = basePrice + searchesPrice + featuresPrice;
 
             // Calculate the discount and find the best offer
-            double discount = calculateDiscount(plan, numberOfUsers);
+            double discount = calculateDiscount(plan, numberOfUsers, total);
             double finalPrice = total - discount;
 
             // Find the best applicable offer
@@ -78,8 +132,12 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
             return CalculatePriceResponseDto.builder()
                     .planId(plan.getId())
                     .planName(plan.getName())
-                    .pricePerUser(pricePerUser)
+                    .pricePerUser(plan.getPricePerUser())
                     .numberOfUsers(numberOfUsers)
+                    .basePrice(basePrice)
+                    .numberOfSearches(requestDto.getNumberOfSearches())
+                    .searchesPrice(searchesPrice)
+                    .featuresPrice(featuresPrice)
                     .total(total)
                     .discount(discount)
                     .finalPrice(finalPrice)
@@ -120,6 +178,8 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
                     calculatePrice(CalculatePriceRequestDto.builder()
                             .numberOfUsers(requestDto.getNumberOfUsers())
                             .planId(requestDto.getPlanId())
+                            .numberOfSearches(requestDto.getNumberOfSearches())
+                            .selectedFeatures(requestDto.getSelectedFeatures())
                             .build());
 
             // Save file
@@ -133,6 +193,10 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
                     .numberOfUsers(requestDto.getNumberOfUsers())
                     .usedUsers(0)
                     .remainingUsers(requestDto.getNumberOfUsers())
+                    // Initialize searches and points for customer plans
+                    .numberOfSearches(requestDto.getNumberOfSearches())
+                    .remainingSearches(requestDto.getNumberOfSearches())
+                    .points(0)
                     .total(calculatedPrice.getTotal())
                     .discount(calculatedPrice.getDiscount())
                     .finalPrice(calculatedPrice.getFinalPrice())
@@ -322,7 +386,7 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
     }
 
 
-    private double calculateDiscount(SubscriptionPlan plan, int numberOfUsers) {
+    private double calculateDiscount(SubscriptionPlan plan, int numberOfUsers, double total) {
         if (plan.getSpecialOffers() == null || plan.getSpecialOffers().isEmpty()) {
             return 0.0;
         }
@@ -333,7 +397,6 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
                 .max(Comparator.comparing(SpecialOffer::getDiscountPercentage));
 
         if (bestOffer.isPresent()) {
-            double total = plan.getPricePerUser() * numberOfUsers;
             return total * (bestOffer.get().getDiscountPercentage() / 100.0);
         }
 
@@ -352,6 +415,42 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
                 .orElse(null);
     }
 
+
+    @Override
+    public boolean deductSearchAndAddPoints(String userId) {
+        try {
+            log.info("Deducting search and adding points for user: {}", userId);
+            
+            UserSubscription subscription = userSubscriptionRepository.findFirstByUserId(userId)
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("SUBSCRIPTION_NOT_FOUND")));
+            
+            // Check if user has remaining searches
+            if (subscription.getRemainingSearches() != null && subscription.getRemainingSearches() > 0) {
+                // Deduct one search
+                subscription.setRemainingSearches(subscription.getRemainingSearches() - 1);
+                // Add points (1 point per search)
+                subscription.setPoints((subscription.getPoints() != null ? subscription.getPoints() : 0) + 1);
+                userSubscriptionRepository.save(subscription);
+                return true;
+            }
+            
+            // If no remaining searches, check if user has points
+            if (subscription.getPoints() != null && subscription.getPoints() > 0) {
+                // Use points for search (1 point = 1 search)
+                subscription.setPoints(subscription.getPoints() - 1);
+                userSubscriptionRepository.save(subscription);
+                return true;
+            }
+            
+            // No searches and no points
+            return false;
+        } catch (AbstractException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error deducting search and adding points: {}", e.getMessage());
+            throw new AbstractException(messagesUtil.getMessage("SEARCH_DEDUCT_FAIL"));
+        }
+    }
 
     @Async
     public void activateUserAndCleanupSubscriptions(UserSubscription subscription) {

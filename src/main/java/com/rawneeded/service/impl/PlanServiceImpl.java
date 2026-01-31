@@ -83,9 +83,7 @@ public class PlanServiceImpl implements IPlanService {
             if (requestDto.getExclusive() != null) {
                 plan.setExclusive(requestDto.getExclusive());
             }
-            if (requestDto.getHasAdvertisements() != null) {
-                plan.setHasAdvertisements(requestDto.getHasAdvertisements());
-            }
+
             plan = subscriptionPlanRepository.save(plan);
             log.info("Subscription plan created successfully with id: {}", plan.getId());
 

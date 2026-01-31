@@ -2,6 +2,8 @@ package com.rawneeded.dto.subscription;
 
 import com.rawneeded.enumeration.BillingFrequency;
 import com.rawneeded.enumeration.PlanType;
+import com.rawneeded.model.PlanFeature;
+import com.rawneeded.model.ProductSearchesConfig;
 import com.rawneeded.model.SpecialOffer;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,9 +31,15 @@ public class UpdatePlanRequestDto {
     
     private PlanType planType;
     
-    private List<String> features;
+    // Features list with prices
+    private List<PlanFeature> features;
+    
+    // For Customer plans: Product searches configuration
+    private ProductSearchesConfig productSearchesConfig;
+    
+    // For Supplier plans: Base subscription price
+    @Positive(message = "Base subscription price must be positive")
+    private Double baseSubscriptionPrice;
     
     private Boolean exclusive;
-    
-    private Boolean hasAdvertisements;
 }
