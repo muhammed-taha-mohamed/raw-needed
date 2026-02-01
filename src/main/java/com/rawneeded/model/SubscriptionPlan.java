@@ -29,9 +29,7 @@ public class SubscriptionPlan {
     
     // For Customer plans: Product searches configuration
     private ProductSearchesConfig productSearchesConfig;
-    
-    // For Supplier plans: Base subscription price
-    private Double baseSubscriptionPrice;
+
     
     private boolean exclusive = false;
     private boolean active = true;

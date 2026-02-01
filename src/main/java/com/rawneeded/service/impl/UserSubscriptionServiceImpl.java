@@ -65,10 +65,10 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
             double searchesPrice = 0.0;
             double featuresPrice = 0.0;
             
-            // Calculate base price based on plan type
+            // Calculate base price based on a plan type
             if (plan.getPlanType() == PlanType.SUPPLIER) {
                 // For suppliers: base subscription price
-                basePrice = plan.getBaseSubscriptionPrice() != null ? plan.getBaseSubscriptionPrice() : 0.0;
+                basePrice = plan.getPricePerUser() * numberOfUsers;
             } else if (plan.getPlanType() == PlanType.CUSTOMER) {
                 // For customers: price per user
                 basePrice = plan.getPricePerUser() * numberOfUsers;
@@ -101,7 +101,7 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
             if (requestDto.getSelectedFeatures() != null && !requestDto.getSelectedFeatures().isEmpty() 
                     && plan.getFeatures() != null && !plan.getFeatures().isEmpty()) {
                 for (PlanFeatures selectedFeature : requestDto.getSelectedFeatures()) {
-                    // Find the feature in plan's features list
+                    // Find the feature in plan's feature list
                     Optional<PlanFeature> planFeature = plan.getFeatures().stream()
                             .filter(f -> f.getFeature() == selectedFeature)
                             .findFirst();

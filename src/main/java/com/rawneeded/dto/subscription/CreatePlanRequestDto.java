@@ -42,10 +42,6 @@ public class CreatePlanRequestDto {
     
     // For Customer plans: Product searches configuration
     private ProductSearchesConfig productSearchesConfig;
-    
-    // For Supplier plans: Base subscription price
-    @Positive(message = "Base subscription price must be positive")
-    private Double baseSubscriptionPrice;
-    
+
     private Boolean exclusive;
 }
