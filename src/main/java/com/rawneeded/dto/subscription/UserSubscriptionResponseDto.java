@@ -1,5 +1,6 @@
 package com.rawneeded.dto.subscription;
 
+import com.rawneeded.enumeration.PlanFeatures;
 import com.rawneeded.enumeration.UserSubscriptionStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -7,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -30,4 +32,9 @@ public class UserSubscriptionResponseDto {
     private LocalDateTime submissionDate;
     private LocalDateTime subscriptionDate ;
     private LocalDateTime expiryDate;
+    private List<PlanFeatures> selectedFeatures;
+    // For Customer plans: Product searches
+    private Integer numberOfSearches; // Total searches purchased
+    private Integer remainingSearches; // Remaining searches
+    private Integer points; // Points earned from searches
 }

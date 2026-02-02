@@ -5,14 +5,18 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
+
+import java.time.LocalDate;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
 @Document
 @Builder
+//@CompoundIndex(name = "supplier_name_unique", def = "{'supplier.$id': 1, 'name': 1}", unique = true)
 public class Product {
     private String id;
     private String name;
@@ -30,5 +34,7 @@ public class Product {
     private String image;
 
     private String unit;
+    private LocalDate productionDate;
+    private LocalDate expirationDate;
 
 }

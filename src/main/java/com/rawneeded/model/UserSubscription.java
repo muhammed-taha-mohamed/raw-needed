@@ -1,5 +1,6 @@
 package com.rawneeded.model;
 
+import com.rawneeded.enumeration.PlanFeatures;
 import com.rawneeded.enumeration.UserSubscriptionStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,6 +10,7 @@ import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Document
 @AllArgsConstructor
@@ -34,7 +36,9 @@ public class UserSubscription {
     private Integer numberOfSearches; // Total searches purchased
     private Integer remainingSearches; // Remaining searches
     private Integer points; // Points earned from searches
-    
+
+    private List<PlanFeatures> selectedFeatures;
+
     private double total;
     private double discount;
     private double finalPrice;
@@ -48,4 +52,5 @@ public class UserSubscription {
     private LocalDateTime subscriptionDate ;
     private LocalDateTime expiryDate;
     private LocalDateTime submissionDate = LocalDateTime.now();
+
 }

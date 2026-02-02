@@ -11,4 +11,6 @@ public interface CategoryRepository extends MongoRepository<Category, String> {
     boolean existsByNameIgnoreCase(String name);
 
     boolean existsByNameIgnoreCaseAndIdNot(String name, String id);
+
+    Optional<Category> findFirstByNameIgnoreCase(String name);
 }

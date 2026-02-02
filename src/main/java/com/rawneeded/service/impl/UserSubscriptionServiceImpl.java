@@ -203,6 +203,7 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
                     .filePath(filePath)
                     .status(PENDING)
                     .submissionDate(LocalDateTime.now())
+                    .selectedFeatures(requestDto.getSelectedFeatures())
                     .build();
 
             userSubscription = userSubscriptionRepository.save(userSubscription);
@@ -269,8 +270,13 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
             String userId = jwtTokenProvider.getOwnerIdFromToken(token);
             log.info("Fetching subscription for user: {}", userId);
             UserSubscription subscription = userSubscriptionRepository.findFirstByUserId(userId)
-                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("SUBSCRIPTION_NOT_FOUND")));
-            return subscriptionMapper.toResponseDto(subscription);
+                    .orElse(null);
+            if (subscription != null) {
+                return subscriptionMapper.toResponseDto(subscription);
+            } else {
+                return null;
+            }
+
         }catch (AbstractException e) {
             throw e;
         } catch (Exception e) {
