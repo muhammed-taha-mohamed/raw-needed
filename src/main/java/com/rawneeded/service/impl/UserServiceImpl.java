@@ -127,6 +127,11 @@ public class UserServiceImpl implements IUserService {
             throw new IllegalArgumentException(messagesUtil.getMessage("EMAIL_PASSWORD_NOT_VALID"));
         }
 
+        // Check if account is active
+        if (user.getAccountStatus() == AccountStatus.INACTIVE) {
+            throw new AbstractException(messagesUtil.getMessage("ACCOUNT_INACTIVE"));
+        }
+
         String token = tokenProvider.generateToken(
                 GenerateTokenDto.builder()
                         .id(user.getId())
@@ -367,6 +372,78 @@ public class UserServiceImpl implements IUserService {
             throw new AbstractException(e.getMessage());
         }
     }
+    @Override
+    public Page<UserResponseDto> getAllUsers(Pageable pageable) {
+        try {
+            log.info("Fetching all users");
+            Page<User> users = userRepository.findAll(pageable);
+            return userMapper.toResponsePages(users);
+        } catch (AbstractException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to get all users: {}", e.getMessage());
+            throw new AbstractException(messagesUtil.getMessage("FAILED_TO_FETCH_USERS"));
+        }
+    }
+
+    @Override
+    public UserResponseDto activateUser(String userId) {
+        try {
+            log.info("Activating user: {}", userId);
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_NOT_FOUND")));
+
+            user.setAccountStatus(AccountStatus.ACTIVE);
+            user = userRepository.save(user);
+
+            // If user is OWNER, activate all their staff members
+            if (user.getRole() == Role.CUSTOMER_OWNER || user.getRole() == Role.SUPPLIER_OWNER) {
+                List<User> staffMembers = userRepository.findAllByOwnerId(user.getId());
+                for (User staff : staffMembers) {
+                    staff.setAccountStatus(AccountStatus.ACTIVE);
+                    userRepository.save(staff);
+                    log.info("Activated staff member: {}", staff.getId());
+                }
+            }
+
+            return userMapper.toResponseDto(user);
+        } catch (AbstractException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to activate user: {}", e.getMessage());
+            throw new AbstractException(messagesUtil.getMessage("FAILED_TO_ACTIVATE_USER"));
+        }
+    }
+
+    @Override
+    public UserResponseDto deactivateUser(String userId) {
+        try {
+            log.info("Deactivating user: {}", userId);
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_NOT_FOUND")));
+
+            user.setAccountStatus(AccountStatus.INACTIVE);
+            user = userRepository.save(user);
+
+            // If user is OWNER, deactivate all their staff members
+            if (user.getRole() == Role.CUSTOMER_OWNER || user.getRole() == Role.SUPPLIER_OWNER) {
+                List<User> staffMembers = userRepository.findAllByOwnerId(user.getId());
+                for (User staff : staffMembers) {
+                    staff.setAccountStatus(AccountStatus.INACTIVE);
+                    userRepository.save(staff);
+                    log.info("Deactivated staff member: {}", staff.getId());
+                }
+            }
+
+            return userMapper.toResponseDto(user);
+        } catch (AbstractException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to deactivate user: {}", e.getMessage());
+            throw new AbstractException(messagesUtil.getMessage("FAILED_TO_DEACTIVATE_USER"));
+        }
+    }
+
     @PostConstruct
     public void initSuperAdmin() {
         if (userRepository.existsByRole(Role.SUPER_ADMIN)) {

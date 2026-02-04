@@ -36,4 +36,9 @@ public interface IUserService {
     Page<SupplierInfo> getAllSuppliers(Pageable pageable, String category);
 
     List<SupplierInfo> getAllSuppliers(String category);
+
+    /* =========== ADMIN USER MANAGEMENT =========== */
+    Page<UserResponseDto> getAllUsers(Pageable pageable);
+    UserResponseDto activateUser(String userId);
+    UserResponseDto deactivateUser(String userId);
 }

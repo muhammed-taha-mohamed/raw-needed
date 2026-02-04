@@ -38,6 +38,9 @@ public class RFQOrderLine {
     
     private Boolean customerApproved;
 
+    // Special Offer
+    private String specialOfferId; // ID of special offer if this order line is from a special offer
+
     // Supplier Response
     private SupplierResponseOnOrderDTO supplierResponse;
 }

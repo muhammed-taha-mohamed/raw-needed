@@ -16,6 +16,9 @@ public class AdvertisementResponseDto {
     private String userId;
     private String image;
     private String text;
+    private LocalDateTime startDate;
+    private LocalDateTime endDate;
+    private boolean featured;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private boolean active;

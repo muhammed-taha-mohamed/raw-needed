@@ -23,6 +23,9 @@ public interface IUserSubscriptionService {
     // Pending subscription management
     Page<UserSubscriptionResponseDto> getAllPendingUserSubscriptions(Pageable pageable);
 
+    /** Admin: list approved (non-pending) user subscriptions */
+    Page<UserSubscriptionResponseDto> getApprovedUserSubscriptions(Pageable pageable);
+
     UserSubscriptionResponseDto approveUserSubscription(String userSubscriptionId);
 
     UserSubscriptionResponseDto rejectUserSubscription(String userSubscriptionId, String reason);

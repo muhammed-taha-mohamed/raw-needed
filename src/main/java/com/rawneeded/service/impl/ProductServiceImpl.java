@@ -681,8 +681,7 @@ public class ProductServiceImpl implements IProductService {
                     rowsProcessed++;
 
                     String origin = getCellString(row.getCell(1));
-                    String categoryName = getCellString(row.getCell(2));
-                    String subCategoryName = getCellString(row.getCell(3));
+                    
                     String unit = getCellString(row.getCell(4));
                     String inStockStr = getCellString(row.getCell(5));
                     String stockQtyStr = getCellString(row.getCell(6));
@@ -754,13 +753,22 @@ public class ProductServiceImpl implements IProductService {
 
     private String getCellString(Cell cell) {
         if (cell == null) return null;
-        return switch (cell.getCellType()) {
-            case STRING -> cell.getStringCellValue();
+        CellType type = cell.getCellType();
+        // Category ID and SubCategory ID cells may come as FORMULA (dropdown result)
+        if (type == CellType.FORMULA) {
+            type = cell.getCachedFormulaResultType();
+        }
+        return switch (type) {
+            case STRING -> {
+                String s = cell.getStringCellValue();
+                yield (s != null && !s.isBlank()) ? s : null;
+            }
             case NUMERIC -> {
                 double num = cell.getNumericCellValue();
                 yield num == (long) num ? String.valueOf((long) num) : String.valueOf(num);
             }
             case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
+            case BLANK -> null;
             default -> null;
         };
     }

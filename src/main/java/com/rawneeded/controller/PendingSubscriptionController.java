@@ -33,6 +33,19 @@ public class PendingSubscriptionController {
                 .build());
     }
 
+    @GetMapping("/approved")
+    @Operation(summary = "Get approved (active) user subscriptions",
+            description = "Retrieve all approved user subscriptions - non-pending (SYSTEM_ADMIN only)")
+    public ResponseEntity<ResponsePayload> getApprovedUserSubscriptions(Pageable pageable) {
+        Page<UserSubscriptionResponseDto> userSubscriptions = userSubscriptionAdminService.getApprovedUserSubscriptions(pageable);
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of(
+                        "success", true,
+                        "data", userSubscriptions))
+                .build());
+    }
+
     @PostMapping("/{userSubscriptionId}/approve")
     @Operation(summary = "Approve a user subscription",
             description = "Approve a user subscription and activate the user's account (SYSTEM_ADMIN only)")

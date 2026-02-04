@@ -329,6 +329,20 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
     }
 
     @Override
+    public Page<UserSubscriptionResponseDto> getApprovedUserSubscriptions(Pageable pageable) {
+        try {
+            log.info("Fetching approved user subscriptions");
+            Page<UserSubscription> userSubscriptions = userSubscriptionRepository.findByStatus(pageable, APPROVED);
+            return subscriptionMapper.toResponsePages(userSubscriptions);
+        } catch (AbstractException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error fetching approved user subscriptions: {}", e.getMessage());
+            throw new AbstractException(messagesUtil.getMessage("USER_SUBSCRIPTION_PENDING_FETCH_FAIL"));
+        }
+    }
+
+    @Override
     public UserSubscriptionResponseDto approveUserSubscription(String userSubscriptionId) {
         try {
             log.info("Approving user subscription: {}", userSubscriptionId);

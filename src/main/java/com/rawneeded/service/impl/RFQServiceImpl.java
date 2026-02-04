@@ -67,6 +67,16 @@ public class RFQServiceImpl implements IRFQService {
             User creator = userRepository.findById(ownerId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("OWNER_NOT_FOUND")));
 
+            // Determine specialOfferId: use from request, or from first item that has it
+            String specialOfferId = requestDto.getSpecialOfferId();
+            if (specialOfferId == null || specialOfferId.isEmpty()) {
+                specialOfferId = requestDto.getItems().stream()
+                        .filter(item -> item.getSpecialOfferId() != null && !item.getSpecialOfferId().isEmpty())
+                        .map(item -> item.getSpecialOfferId())
+                        .findFirst()
+                        .orElse(null);
+            }
+
             RFQOrder order = RFQOrder.builder()
                     .userId(requestDto.getUserId())
                     .userName(creator.getName())
@@ -78,6 +88,7 @@ public class RFQServiceImpl implements IRFQService {
                     .createdAt(LocalDateTime.now())
                     .numberOfLines(requestDto.getItems().size())
                     .orderNumber(generateOrderNumber())
+                    .specialOfferId(specialOfferId)
                     .build();
 
             final RFQOrder savedOrder = orderRepository.save(order);
@@ -556,6 +567,7 @@ public class RFQServiceImpl implements IRFQService {
                     .quantity(item.getQuantity())
                     .status(LineStatus.PENDING)
                     .customerApproved(null)
+                    .specialOfferId(item.getSpecialOfferId()) // Add special offer ID
                     .supplierResponse(null)
                     .build();
         }).toList();

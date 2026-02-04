@@ -11,7 +11,7 @@ public interface ICartService {
 
     CartDTO clearCart(String userId);
 
-    CartDTO addItemToCart(String userId, String productId,float quantity);
+    CartDTO addItemToCart(String userId, String productId, float quantity, String specialOfferId);
 
     CartDTO removeItemFromCart(String userId, String productId);
 }

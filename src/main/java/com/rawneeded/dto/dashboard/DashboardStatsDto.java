@@ -1,5 +1,7 @@
 package com.rawneeded.dto.dashboard;
 
+import com.rawneeded.dto.RFQ.RFQOrderResponseDto;
+import com.rawneeded.dto.user.SupplierInfo;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -35,4 +37,19 @@ public class DashboardStatsDto {
     private long totalOrderLines;
     private long pendingOrderLines;
     private long respondedOrderLines;
+    
+    // Latest Order
+    private RFQOrderResponseDto latestOrder;
+    
+    // Most Requested Supplier
+    private SupplierInfo mostRequestedSupplier;
+    private long mostRequestedSupplierOrderCount;
+    
+    // Screen-specific statistics
+    private long cartItemsCount;
+    private long vendorsCount;
+    private long productsCount;
+    private long marketRequestsCount;
+    private long teamMembersCount;
+    private long complaintsCount;
 }

@@ -1,14 +1,28 @@
 package com.rawneeded.service.impl;
 
+import com.rawneeded.dto.RFQ.RFQOrderResponseDto;
 import com.rawneeded.dto.dashboard.DashboardStatsDto;
 import com.rawneeded.dto.dashboard.MonthlyOrderStats;
+import com.rawneeded.dto.user.SupplierInfo;
 import com.rawneeded.enumeration.LineStatus;
 import com.rawneeded.enumeration.OrderStatus;
+import com.rawneeded.enumeration.Role;
 import com.rawneeded.jwt.JwtTokenProvider;
+import com.rawneeded.mapper.RFQMapper;
+import com.rawneeded.mapper.UserMapper;
+import com.rawneeded.model.Cart;
+import com.rawneeded.model.Post;
 import com.rawneeded.model.RFQOrder;
 import com.rawneeded.model.RFQOrderLine;
+import com.rawneeded.model.User;
+import org.springframework.data.domain.PageRequest;
+import com.rawneeded.repository.CartRepository;
+import com.rawneeded.repository.ComplaintRepository;
+import com.rawneeded.repository.PostRepository;
+import com.rawneeded.repository.ProductRepository;
 import com.rawneeded.repository.RFQOrderLineRepository;
 import com.rawneeded.repository.RFQOrderRepository;
+import com.rawneeded.repository.UserRepository;
 import com.rawneeded.service.ICustomerDashboardService;
 import com.rawneeded.util.MessagesUtil;
 import lombok.AllArgsConstructor;
@@ -22,6 +36,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,13 +46,21 @@ public class CustomerDashboardServiceImpl implements ICustomerDashboardService {
 
     private final RFQOrderRepository orderRepository;
     private final RFQOrderLineRepository orderLineRepository;
+    private final CartRepository cartRepository;
+    private final PostRepository postRepository;
+    private final UserRepository userRepository;
+    private final ProductRepository productRepository;
+    private final ComplaintRepository complaintRepository;
     private final JwtTokenProvider tokenProvider;
     private final MessagesUtil messagesUtil;
+    private final RFQMapper rfqMapper;
+    private final UserMapper userMapper;
 
     @Override
     public DashboardStatsDto getDashboardStats() {
         String token = messagesUtil.getAuthToken();
         String ownerId = tokenProvider.getOwnerIdFromToken(token);
+        String userId = tokenProvider.getIdFromToken(token);
         
         log.info("Getting dashboard stats for customer owner: {}", ownerId);
         
@@ -86,11 +109,16 @@ public class CustomerDashboardServiceImpl implements ICustomerDashboardService {
                 .filter(l -> l.getStatus() == LineStatus.RESPONDED)
                 .count();
 
-        // Calculate monthly statistics
-        List<MonthlyOrderStats> monthlyStats = calculateMonthlyStats(allOrders);
+        // Calculate monthly statistics for current year only
+        LocalDateTime now = LocalDateTime.now();
+        int currentYear = now.getYear();
+        LocalDateTime startOfYear = LocalDateTime.of(currentYear, 1, 1, 0, 0, 0);
+        List<RFQOrder> ordersThisYear = allOrders.stream()
+                .filter(o -> o.getCreatedAt() != null && o.getCreatedAt().isAfter(startOfYear.minusDays(1)))
+                .toList();
+        List<MonthlyOrderStats> monthlyStats = calculateMonthlyStats(ordersThisYear);
         
         // Calculate growth
-        LocalDateTime now = LocalDateTime.now();
         LocalDateTime startOfThisMonth = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
         LocalDateTime startOfLastMonth = startOfThisMonth.minusMonths(1);
         
@@ -108,6 +136,63 @@ public class CustomerDashboardServiceImpl implements ICustomerDashboardService {
                 ? ((double)(ordersThisMonth - ordersLastMonth) / ordersLastMonth) * 100 
                 : (ordersThisMonth > 0 ? 100.0 : 0.0);
         
+        // Get latest order
+        RFQOrderResponseDto latestOrder = null;
+        if (!allOrders.isEmpty()) {
+            latestOrder = rfqMapper.toOrderResponseDto(allOrders.get(0));
+        }
+        
+        // Get most requested supplier
+        SupplierInfo mostRequestedSupplier = null;
+        long mostRequestedSupplierOrderCount = 0;
+        if (!allOrderLines.isEmpty()) {
+            Map<String, Long> supplierOrderCounts = allOrderLines.stream()
+                    .filter(line -> line.getSupplierId() != null)
+                    .collect(Collectors.groupingBy(
+                            RFQOrderLine::getSupplierId,
+                            Collectors.counting()
+                    ));
+            
+            if (!supplierOrderCounts.isEmpty()) {
+                String mostRequestedSupplierId = supplierOrderCounts.entrySet().stream()
+                        .max(Map.Entry.comparingByValue())
+                        .map(Map.Entry::getKey)
+                        .orElse(null);
+                
+                if (mostRequestedSupplierId != null) {
+                    Optional<User> supplierOpt = userRepository.findById(mostRequestedSupplierId);
+                    if (supplierOpt.isPresent() && supplierOpt.get().getRole() == Role.SUPPLIER_OWNER) {
+                        mostRequestedSupplier = userMapper.toSupplierResponseDto(supplierOpt.get());
+                        mostRequestedSupplierOrderCount = supplierOrderCounts.get(mostRequestedSupplierId);
+                    }
+                }
+            }
+        }
+        
+        // Get cart items count
+        long cartItemsCount = 0;
+        Optional<Cart> cartOpt = cartRepository.findByUserId(userId);
+        if (cartOpt.isPresent() && cartOpt.get().getItems() != null) {
+            cartItemsCount = cartOpt.get().getItems().size();
+        }
+        
+        // Get vendors count (total suppliers)
+        long vendorsCount = userRepository.findAllByRole(Role.SUPPLIER_OWNER).size();
+        
+        // Get products count
+        long productsCount = productRepository.count();
+        
+        // Get market requests count (posts created by this user)
+        List<Post> userPosts = postRepository.findByCreatedById(userId);
+        long marketRequestsCount = userPosts.size();
+        
+        // Get team members count
+        List<User> teamMembers = userRepository.findAllByOwnerId(ownerId);
+        long teamMembersCount = teamMembers.size();
+        
+        // Get complaints count
+        long complaintsCount = complaintRepository.findByUserIdOrderByCreatedAtDesc(userId, PageRequest.of(0, 1)).getTotalElements();
+        
         return DashboardStatsDto.builder()
                 .totalOrders(totalOrders)
                 .pendingOrders(pendingOrders)
@@ -122,6 +207,15 @@ public class CustomerDashboardServiceImpl implements ICustomerDashboardService {
                 .totalOrderLines(totalOrderLines)
                 .pendingOrderLines(pendingOrderLines)
                 .respondedOrderLines(respondedOrderLines)
+                .latestOrder(latestOrder)
+                .mostRequestedSupplier(mostRequestedSupplier)
+                .mostRequestedSupplierOrderCount(mostRequestedSupplierOrderCount)
+                .cartItemsCount(cartItemsCount)
+                .vendorsCount(vendorsCount)
+                .productsCount(productsCount)
+                .marketRequestsCount(marketRequestsCount)
+                .teamMembersCount(teamMembersCount)
+                .complaintsCount(complaintsCount)
                 .build();
     }
     

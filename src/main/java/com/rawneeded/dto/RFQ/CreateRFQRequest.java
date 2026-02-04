@@ -15,4 +15,5 @@ import java.util.List;
 public class CreateRFQRequest {
     private String userId;
     private List<CartItemDTO> items;
+    private String specialOfferId; // Optional: ID of special offer if order is from special offer
 }

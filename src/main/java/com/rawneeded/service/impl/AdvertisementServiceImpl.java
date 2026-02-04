@@ -4,18 +4,23 @@ import com.rawneeded.dto.advertisement.AdvertisementResponseDto;
 import com.rawneeded.dto.advertisement.CreateAdvertisementRequestDto;
 import com.rawneeded.dto.advertisement.UpdateAdvertisementRequestDto;
 import com.rawneeded.error.exceptions.AbstractException;
+import com.rawneeded.enumeration.Role;
 import com.rawneeded.jwt.JwtTokenProvider;
 import com.rawneeded.model.Advertisement;
+import com.rawneeded.model.AdPackage;
 import com.rawneeded.model.User;
-import com.rawneeded.model.UserSubscription;
+import com.rawneeded.repository.AdPackageRepository;
 import com.rawneeded.repository.AdvertisementRepository;
 import com.rawneeded.repository.UserRepository;
+import com.rawneeded.service.IAdSubscriptionService;
 import com.rawneeded.service.IAdvertisementService;
 import com.rawneeded.util.MessagesUtil;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -29,6 +34,8 @@ public class AdvertisementServiceImpl implements IAdvertisementService {
 
     private final AdvertisementRepository advertisementRepository;
     private final UserRepository userRepository;
+    private final AdPackageRepository adPackageRepository;
+    private final IAdSubscriptionService adSubscriptionService;
     private final MessagesUtil messagesUtil;
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -37,27 +44,47 @@ public class AdvertisementServiceImpl implements IAdvertisementService {
         try {
             String token = messagesUtil.getAuthToken();
             String userId = jwtTokenProvider.getOwnerIdFromToken(token);
+            Role role = jwtTokenProvider.getRoleFromToken(token);
             log.info("Creating advertisement for user: {}", userId);
 
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_NOT_FOUND")));
 
-            // Check if a user has a subscription with advertisements enabled
-            UserSubscription subscription = user.getSubscription();
+            // Supplier must have an approved ad subscription before adding an ad
+            if (role == Role.SUPPLIER_OWNER || role == Role.SUPPLIER_STAFF) {
+                if (!adSubscriptionService.hasActiveSubscription(userId)) {
+                    throw new AbstractException(messagesUtil.getMessage("ADVERTISEMENT_SUBSCRIPTION_REQUIRED"));
+                }
+            }
 
+            AdPackage adPackage = adPackageRepository.findById(requestDto.getAdPackageId())
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("ADVERTISEMENT_PACKAGE_INACTIVE")));
+            if (!adPackage.isActive()) {
+                throw new AbstractException(messagesUtil.getMessage("ADVERTISEMENT_PACKAGE_INACTIVE"));
+            }
+
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime endDate = now.plusDays(adPackage.getNumberOfDays());
 
             Advertisement advertisement = Advertisement.builder()
                     .user(user)
                     .userId(userId)
                     .image(requestDto.getImage())
                     .text(requestDto.getText())
-                    .createdAt(LocalDateTime.now())
-                    .updatedAt(LocalDateTime.now())
+                    .startDate(now)
+                    .endDate(endDate)
+                    .featured(requestDto.isFeatured())
+                    .createdAt(now)
+                    .updatedAt(now)
                     .active(true)
                     .build();
 
             advertisement = advertisementRepository.save(advertisement);
             log.info("Advertisement created successfully with id: {}", advertisement.getId());
+
+            if (role == Role.SUPPLIER_OWNER || role == Role.SUPPLIER_STAFF) {
+                adSubscriptionService.consumeOneAd(userId);
+            }
 
             return mapToResponseDto(advertisement);
         } catch (AbstractException e) {
@@ -139,8 +166,11 @@ public class AdvertisementServiceImpl implements IAdvertisementService {
     @Override
     public Page<AdvertisementResponseDto> getAllAdvertisements(Pageable pageable) {
         try {
-            log.info("Fetching all active advertisements");
-            Page<Advertisement> advertisements = advertisementRepository.findByActiveTrueOrderByCreatedAtDesc(pageable);
+            log.info("Fetching all active non-expired advertisements (featured first)");
+            LocalDateTime now = LocalDateTime.now();
+            Sort sort = Sort.by(Sort.Direction.DESC, "featured").and(Sort.by(Sort.Direction.DESC, "createdAt"));
+            Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
+            Page<Advertisement> advertisements = advertisementRepository.findActiveAndNotExpired(now, sortedPageable);
             return advertisements.map(this::mapToResponseDto);
         } catch (Exception e) {
             log.error("Error fetching all advertisements: {}", e.getMessage(), e);
@@ -169,6 +199,9 @@ public class AdvertisementServiceImpl implements IAdvertisementService {
                 .userId(advertisement.getUserId())
                 .image(advertisement.getImage())
                 .text(advertisement.getText())
+                .startDate(advertisement.getStartDate())
+                .endDate(advertisement.getEndDate())
+                .featured(advertisement.isFeatured())
                 .createdAt(advertisement.getCreatedAt())
                 .updatedAt(advertisement.getUpdatedAt())
                 .active(advertisement.isActive())

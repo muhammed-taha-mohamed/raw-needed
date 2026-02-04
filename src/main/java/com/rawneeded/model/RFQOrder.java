@@ -33,4 +33,6 @@ public class RFQOrder {
     private LocalDateTime createdAt;
 
     private boolean createdByOwner;
+
+    private String specialOfferId; // Flag to indicate if order is from special offer
 }

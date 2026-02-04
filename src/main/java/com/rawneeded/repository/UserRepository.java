@@ -27,5 +27,7 @@ public interface UserRepository extends MongoRepository<User, String> {
 
     Page<User> findAllByRoleAndCategory_Id(Role role ,String categoryId , Pageable pageable);
     List<User> findAllByRoleAndCategory_Id(Role role , String categoryId);
+    
+    List<User> findAllByOwnerId(String ownerId);
 
 }

@@ -18,4 +18,5 @@ public class CartItemDTO {
     private boolean inStock;
     private float quantity;
     private String image;
+    private String specialOfferId; // ID of special offer if this item is from a special offer
 }

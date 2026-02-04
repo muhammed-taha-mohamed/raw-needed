@@ -60,8 +60,12 @@ public class CartController {
     @PostMapping("/add-item")
     @Operation(summary = "Add item to the user's cart.",
             description = "This API is used to add a product to the user's cart.")
-    public ResponseEntity<ResponsePayload> addItemToCart(@RequestParam String userId, @RequestParam String productId,@RequestParam float quantity) {
-        CartDTO updatedCart = cartService.addItemToCart(userId, productId,quantity);
+    public ResponseEntity<ResponsePayload> addItemToCart(
+            @RequestParam String userId, 
+            @RequestParam String productId,
+            @RequestParam float quantity,
+            @RequestParam(required = false) String specialOfferId) {
+        CartDTO updatedCart = cartService.addItemToCart(userId, productId, quantity, specialOfferId);
         return ResponseEntity.ok(ResponsePayload.builder()
                 .date(LocalDateTime.now())
                 .content(Map.of(

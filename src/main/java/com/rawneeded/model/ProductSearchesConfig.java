@@ -10,8 +10,8 @@ import lombok.NoArgsConstructor;
 @Data
 @Builder
 public class ProductSearchesConfig {
-    private Integer from; // عدد السيرشات الأدنى
-    private Integer to; // عدد السيرشات الأعلى (null يعني unlimited)
-    private Boolean unlimited; // true إذا كان unlimited
-    private Double pricePerSearch; // سعر السيرش الواحد
+    private Integer from; // min search count
+    private Integer to; // max search count (null means unlimited)
+    private Boolean unlimited; // true if unlimited
+    private Double pricePerSearch; // price per search
 }

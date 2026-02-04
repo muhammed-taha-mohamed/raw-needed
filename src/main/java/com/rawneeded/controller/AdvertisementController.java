@@ -1,9 +1,13 @@
 package com.rawneeded.controller;
 
 import com.rawneeded.dto.ResponsePayload;
+import com.rawneeded.dto.advertisement.AdPackageResponseDto;
+import com.rawneeded.dto.advertisement.AdSettingsResponseDto;
 import com.rawneeded.dto.advertisement.AdvertisementResponseDto;
 import com.rawneeded.dto.advertisement.CreateAdvertisementRequestDto;
 import com.rawneeded.dto.advertisement.UpdateAdvertisementRequestDto;
+import com.rawneeded.service.IAdPackageService;
+import com.rawneeded.service.IAdSettingsService;
 import com.rawneeded.service.IAdvertisementService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -23,6 +27,8 @@ import java.util.Map;
 public class AdvertisementController {
 
     private final IAdvertisementService advertisementService;
+    private final IAdPackageService adPackageService;
+    private final IAdSettingsService adSettingsService;
 
     @PostMapping
     @Operation(
@@ -124,6 +130,26 @@ public class AdvertisementController {
                         "success", true,
                         "data", advertisement
                 ))
+                .build());
+    }
+
+    @GetMapping("/packages")
+    @Operation(summary = "Get active ad packages (for supplier create form)")
+    public ResponseEntity<ResponsePayload> getActivePackages() {
+        List<AdPackageResponseDto> packages = adPackageService.getActivePackagesForSuppliers();
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of("success", true, "data", packages))
+                .build());
+    }
+
+    @GetMapping("/settings")
+    @Operation(summary = "Get ad settings (featured price for supplier create form)")
+    public ResponseEntity<ResponsePayload> getAdSettings() {
+        AdSettingsResponseDto settings = adSettingsService.getSettings();
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of("success", true, "data", settings))
                 .build());
     }
 }

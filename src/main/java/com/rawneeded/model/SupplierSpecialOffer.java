@@ -10,31 +10,30 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDateTime;
 
 @Document
-@AllArgsConstructor
-@NoArgsConstructor
 @Data
 @Builder
-public class Advertisement {
+@AllArgsConstructor
+@NoArgsConstructor
+public class SupplierSpecialOffer {
     private String id;
-
+    
     @DBRef
-    private User user;
-    private String userId;
-
-    private String image;
-    private String text;
-
-    /** Ad display start date */
+    private User supplier;
+    private String supplierId;
+    private String supplierName;
+    private String supplierOrganizationName;
+    
+    @DBRef
+    private Product product;
+    private String productId;
+    private String productName;
+    private String productImage;
+    
+    private Double discountPercentage; // discount percentage
     private LocalDateTime startDate;
-    /** Ad display end date - ad is hidden after */
     private LocalDateTime endDate;
-    /** Feature ad at top (supplier pays extra) */
-    @Builder.Default
-    private boolean featured = false;
-
+    
+    private boolean active = true;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-
-    @Builder.Default
-    private boolean active = true;
 }

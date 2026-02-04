@@ -78,7 +78,7 @@ public class CartServiceImpl implements ICartService {
     }
 
     @Override
-    public CartDTO addItemToCart(String userId, String productId, float quantity) {
+    public CartDTO addItemToCart(String userId, String productId, float quantity, String specialOfferId) {
         try {
             log.info("Start adding item to cart : {}", userId);
 
@@ -103,10 +103,16 @@ public class CartServiceImpl implements ICartService {
                 // Item already exists . Update quantity
                 CartItemDTO existingItem = existingItemOpt.get();
                 existingItem.setQuantity(quantity);
+                if (specialOfferId != null) {
+                    existingItem.setSpecialOfferId(specialOfferId);
+                }
             } else {
                 // Item does not exist . Add new
                 CartItemDTO newItem = productMapper.toCartItemDto(product);
                 newItem.setQuantity(quantity);
+                if (specialOfferId != null) {
+                    newItem.setSpecialOfferId(specialOfferId);
+                }
                 cart.getItems().add(newItem);
             }
 

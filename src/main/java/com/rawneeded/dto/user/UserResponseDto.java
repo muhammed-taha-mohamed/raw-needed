@@ -5,6 +5,7 @@ import com.rawneeded.dto.category.CategoryResponseDto;
 import com.rawneeded.dto.category.SubCategoryResponseDto;
 import com.rawneeded.dto.subscription.UserSubscriptionInfo;
 import com.rawneeded.dto.subscription.UserSubscriptionResponseDto;
+import com.rawneeded.enumeration.AccountStatus;
 import com.rawneeded.enumeration.Role;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,6 +24,7 @@ public class UserResponseDto {
     private Role role;
     private String email;
     private String phoneNumber;
+    private AccountStatus accountStatus;
     private CategoryResponseDto category;
     private List<SubCategoryResponseDto> subCategories;
     private UserSubscriptionInfo subscription;
@@ -31,4 +33,5 @@ public class UserResponseDto {
     private String organizationName;
     private String organizationCRN;
     private String organizationCRNImage;
+    private String ownerId;
 }

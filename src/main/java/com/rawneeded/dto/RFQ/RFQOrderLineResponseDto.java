@@ -39,4 +39,6 @@ public class RFQOrderLineResponseDto {
 
     // Supplier Response
     private SupplierResponseOnOrderDTO supplierResponse;
+
+    private String specialOfferId; // Flag to indicate if order line is from special offer
 }
