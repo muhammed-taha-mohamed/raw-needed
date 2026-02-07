@@ -20,6 +20,7 @@ public class UserSubscriptionResponseDto {
     private String planId;
     private String planName;
     private String userName;
+    private String userOrganizationName;
     private String userImage;
     private int numberOfUsers;
     private int usedUsers;
@@ -36,5 +37,5 @@ public class UserSubscriptionResponseDto {
     // For Customer plans: Product searches
     private Integer numberOfSearches; // Total searches purchased
     private Integer remainingSearches; // Remaining searches
-    private Integer points; // Points earned from searches
+    private Integer points; // Points earned when supplier responds to order
 }

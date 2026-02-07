@@ -10,6 +10,7 @@ import com.rawneeded.enumeration.LineStatus;
 import com.rawneeded.enumeration.OrderStatus;
 import com.rawneeded.enumeration.Role;
 import com.rawneeded.error.exceptions.AbstractException;
+import com.rawneeded.error.exceptions.NoSearchesQuotaException;
 import com.rawneeded.jwt.JwtTokenProvider;
 import com.rawneeded.mapper.RFQMapper;
 import com.rawneeded.model.RFQOrder;
@@ -24,6 +25,7 @@ import com.rawneeded.repository.ProductRepository;
 import com.rawneeded.enumeration.NotificationType;
 import com.rawneeded.service.INotificationService;
 import com.rawneeded.service.IRFQService;
+import com.rawneeded.service.IUserSubscriptionService;
 import com.rawneeded.util.MessagesUtil;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +55,7 @@ public class RFQServiceImpl implements IRFQService {
     private final MessagesUtil messagesUtil;
     private final INotificationService notificationService;
     private final NotificationService emailService;
+    private final IUserSubscriptionService userSubscriptionService;
 
     // ===================== CLIENT =====================
 
@@ -66,6 +69,14 @@ public class RFQServiceImpl implements IRFQService {
 
             User creator = userRepository.findById(ownerId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("OWNER_NOT_FOUND")));
+
+            // Customer: deduct one search when creating an order (manual or from cart)
+            if (creator.getRole() == Role.CUSTOMER_OWNER || creator.getRole() == Role.CUSTOMER_STAFF) {
+                boolean canSearch = userSubscriptionService.deductSearchAndAddPoints(ownerId);
+                if (!canSearch) {
+                    throw new NoSearchesQuotaException(messagesUtil.getMessage("NO_SEARCHES_OR_POINTS_AVAILABLE"));
+                }
+            }
 
             // Determine specialOfferId: use from request, or from first item that has it
             String specialOfferId = requestDto.getSpecialOfferId();
@@ -438,7 +449,7 @@ public class RFQServiceImpl implements IRFQService {
             throw e;
         } catch (Exception e) {
             log.error("Error completing order line: {}", e.getMessage(), e);
-            throw new AbstractException(messagesUtil.getMessage("RFQ_LINE_COMPLETE_FAIL"));
+            throw new AbstractException(messagesUtil.getMessage("RFQ_LINE_COMPLETE_FAIL : " + e.getMessage()));
         }
     }
 
@@ -501,6 +512,9 @@ public class RFQServiceImpl implements IRFQService {
             } catch (Exception e) {
                 log.error("Failed to send notification/email to customer {}: {}", customerOwnerId, e.getMessage());
             }
+
+            // Add 1 point to customer when supplier responds (points are earned on order response, not on search)
+            userSubscriptionService.addPointForSupplierResponse(customerOwnerId);
 
             updateOrderStatus(line.getOrderId());
 

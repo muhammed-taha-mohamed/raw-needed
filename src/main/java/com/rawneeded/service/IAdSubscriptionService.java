@@ -18,6 +18,9 @@ public interface IAdSubscriptionService {
     /** Admin: list pending requests */
     Page<AdSubscriptionResponseDto> getPendingSubscriptions(Pageable pageable);
 
+    /** Admin: list approved (active) subscriptions */
+    Page<AdSubscriptionResponseDto> getApprovedSubscriptions(Pageable pageable);
+
     /** Admin: approve subscription */
     AdSubscriptionResponseDto approve(String subscriptionId);
 

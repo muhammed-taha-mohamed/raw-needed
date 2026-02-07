@@ -18,6 +18,9 @@ public class CreateAdSubscriptionRequestDto {
     @jakarta.validation.constraints.Min(1)
     private int numberOfAds = 1;
 
+    /** Whether to feature ads at top (adds featuredPrice to total) */
+    private boolean featured = false;
+
     /** Payment proof file path after upload (optional) */
     private String paymentProofPath;
 }

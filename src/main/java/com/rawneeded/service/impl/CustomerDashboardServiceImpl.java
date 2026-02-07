@@ -10,16 +10,9 @@ import com.rawneeded.enumeration.Role;
 import com.rawneeded.jwt.JwtTokenProvider;
 import com.rawneeded.mapper.RFQMapper;
 import com.rawneeded.mapper.UserMapper;
-import com.rawneeded.model.Cart;
-import com.rawneeded.model.Post;
 import com.rawneeded.model.RFQOrder;
 import com.rawneeded.model.RFQOrderLine;
 import com.rawneeded.model.User;
-import org.springframework.data.domain.PageRequest;
-import com.rawneeded.repository.CartRepository;
-import com.rawneeded.repository.ComplaintRepository;
-import com.rawneeded.repository.PostRepository;
-import com.rawneeded.repository.ProductRepository;
 import com.rawneeded.repository.RFQOrderLineRepository;
 import com.rawneeded.repository.RFQOrderRepository;
 import com.rawneeded.repository.UserRepository;
@@ -46,11 +39,7 @@ public class CustomerDashboardServiceImpl implements ICustomerDashboardService {
 
     private final RFQOrderRepository orderRepository;
     private final RFQOrderLineRepository orderLineRepository;
-    private final CartRepository cartRepository;
-    private final PostRepository postRepository;
     private final UserRepository userRepository;
-    private final ProductRepository productRepository;
-    private final ComplaintRepository complaintRepository;
     private final JwtTokenProvider tokenProvider;
     private final MessagesUtil messagesUtil;
     private final RFQMapper rfqMapper;
@@ -169,30 +158,6 @@ public class CustomerDashboardServiceImpl implements ICustomerDashboardService {
             }
         }
         
-        // Get cart items count
-        long cartItemsCount = 0;
-        Optional<Cart> cartOpt = cartRepository.findByUserId(userId);
-        if (cartOpt.isPresent() && cartOpt.get().getItems() != null) {
-            cartItemsCount = cartOpt.get().getItems().size();
-        }
-        
-        // Get vendors count (total suppliers)
-        long vendorsCount = userRepository.findAllByRole(Role.SUPPLIER_OWNER).size();
-        
-        // Get products count
-        long productsCount = productRepository.count();
-        
-        // Get market requests count (posts created by this user)
-        List<Post> userPosts = postRepository.findByCreatedById(userId);
-        long marketRequestsCount = userPosts.size();
-        
-        // Get team members count
-        List<User> teamMembers = userRepository.findAllByOwnerId(ownerId);
-        long teamMembersCount = teamMembers.size();
-        
-        // Get complaints count
-        long complaintsCount = complaintRepository.findByUserIdOrderByCreatedAtDesc(userId, PageRequest.of(0, 1)).getTotalElements();
-        
         return DashboardStatsDto.builder()
                 .totalOrders(totalOrders)
                 .pendingOrders(pendingOrders)
@@ -210,12 +175,6 @@ public class CustomerDashboardServiceImpl implements ICustomerDashboardService {
                 .latestOrder(latestOrder)
                 .mostRequestedSupplier(mostRequestedSupplier)
                 .mostRequestedSupplierOrderCount(mostRequestedSupplierOrderCount)
-                .cartItemsCount(cartItemsCount)
-                .vendorsCount(vendorsCount)
-                .productsCount(productsCount)
-                .marketRequestsCount(marketRequestsCount)
-                .teamMembersCount(teamMembersCount)
-                .complaintsCount(complaintsCount)
                 .build();
     }
     

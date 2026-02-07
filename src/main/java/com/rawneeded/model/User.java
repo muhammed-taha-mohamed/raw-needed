@@ -50,6 +50,9 @@ public class User {
     // List of allowed screen IDs (for staff members)
     private List<String> allowedScreens;
 
+    /** Current session ID (UUID). One device per user; validated on each request. */
+    private String sessionId;
+
     // Organization details
     private String organizationName;
     private String organizationCRN;

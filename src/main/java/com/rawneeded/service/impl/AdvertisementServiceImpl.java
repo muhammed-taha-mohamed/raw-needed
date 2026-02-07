@@ -6,10 +6,12 @@ import com.rawneeded.dto.advertisement.UpdateAdvertisementRequestDto;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.enumeration.Role;
 import com.rawneeded.jwt.JwtTokenProvider;
+import com.rawneeded.model.AdSubscription;
 import com.rawneeded.model.Advertisement;
 import com.rawneeded.model.AdPackage;
 import com.rawneeded.model.User;
 import com.rawneeded.repository.AdPackageRepository;
+import com.rawneeded.repository.AdSubscriptionRepository;
 import com.rawneeded.repository.AdvertisementRepository;
 import com.rawneeded.repository.UserRepository;
 import com.rawneeded.service.IAdSubscriptionService;
@@ -27,6 +29,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static com.rawneeded.enumeration.UserSubscriptionStatus.APPROVED;
+
 @Slf4j
 @Service
 @AllArgsConstructor
@@ -35,6 +39,7 @@ public class AdvertisementServiceImpl implements IAdvertisementService {
     private final AdvertisementRepository advertisementRepository;
     private final UserRepository userRepository;
     private final AdPackageRepository adPackageRepository;
+    private final AdSubscriptionRepository adSubscriptionRepository;
     private final IAdSubscriptionService adSubscriptionService;
     private final MessagesUtil messagesUtil;
     private final JwtTokenProvider jwtTokenProvider;
@@ -50,17 +55,22 @@ public class AdvertisementServiceImpl implements IAdvertisementService {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_NOT_FOUND")));
 
-            // Supplier must have an approved ad subscription before adding an ad
-            if (role == Role.SUPPLIER_OWNER || role == Role.SUPPLIER_STAFF) {
-                if (!adSubscriptionService.hasActiveSubscription(userId)) {
-                    throw new AbstractException(messagesUtil.getMessage("ADVERTISEMENT_SUBSCRIPTION_REQUIRED"));
-                }
-            }
-
             AdPackage adPackage = adPackageRepository.findById(requestDto.getAdPackageId())
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("ADVERTISEMENT_PACKAGE_INACTIVE")));
             if (!adPackage.isActive()) {
                 throw new AbstractException(messagesUtil.getMessage("ADVERTISEMENT_PACKAGE_INACTIVE"));
+            }
+
+            // Supplier must have an approved ad subscription before adding an ad
+            boolean isFeatured = requestDto.isFeatured();
+            if (role == Role.SUPPLIER_OWNER || role == Role.SUPPLIER_STAFF) {
+                LocalDateTime now = LocalDateTime.now();
+                AdSubscription activeSub = adSubscriptionRepository
+                        .findFirstBySupplierIdAndStatusAndRemainingAdsGreaterThanOrderByApprovedAtDesc(
+                                userId, APPROVED, 0)
+                        .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("ADVERTISEMENT_SUBSCRIPTION_REQUIRED")));
+                // Use featured from subscription instead of request
+                isFeatured = activeSub.isFeatured();
             }
 
             LocalDateTime now = LocalDateTime.now();
@@ -73,7 +83,7 @@ public class AdvertisementServiceImpl implements IAdvertisementService {
                     .text(requestDto.getText())
                     .startDate(now)
                     .endDate(endDate)
-                    .featured(requestDto.isFeatured())
+                    .featured(isFeatured)
                     .createdAt(now)
                     .updatedAt(now)
                     .active(true)

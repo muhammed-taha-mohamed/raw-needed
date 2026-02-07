@@ -18,7 +18,16 @@ public interface AdSubscriptionRepository extends MongoRepository<AdSubscription
 
     Page<AdSubscription> findByStatus(Pageable pageable, UserSubscriptionStatus status);
 
-    /** Approved subscription still valid and with remaining ads */
-    Optional<AdSubscription> findFirstBySupplierIdAndStatusAndEndDateAfterAndRemainingAdsGreaterThanOrderByApprovedAtDesc(
-            String supplierId, UserSubscriptionStatus status, LocalDateTime now, int remainingAdsMin);
+    long countByStatus(UserSubscriptionStatus status);
+
+    long countByRequestedAtAfter(LocalDateTime date);
+
+    /** Approved subscription still valid and with remaining ads (no date check - validity is per ad) */
+    Optional<AdSubscription> findFirstBySupplierIdAndStatusAndRemainingAdsGreaterThanOrderByApprovedAtDesc(
+            String supplierId, UserSubscriptionStatus status, int remainingAdsMin);
+
+    /** Active subscriptions: approved with at least one ad remaining (no end date - subscription is ads-based only) */
+    long countByStatusAndRemainingAdsGreaterThan(UserSubscriptionStatus status, int remainingAds);
+
+    long countByStatusAndEndDateAfterAndRemainingAdsGreaterThan(UserSubscriptionStatus userSubscriptionStatus, LocalDateTime now, int i);
 }

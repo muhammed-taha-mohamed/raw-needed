@@ -16,6 +16,9 @@ import java.time.LocalDateTime;
 public class AdSubscriptionResponseDto {
     private String id;
     private String supplierId;
+    private String supplierName;
+    private String supplierOrganizationName;
+    private String supplierImage;
     private String adPackageId;
     private UserSubscriptionStatus status;
     private String paymentProofPath;
@@ -28,6 +31,7 @@ public class AdSubscriptionResponseDto {
     private int numberOfDays;
     private BigDecimal pricePerAd;
     private int numberOfAds;
+    private boolean featured;
     private BigDecimal totalPrice;
     private int remainingAds;
 }

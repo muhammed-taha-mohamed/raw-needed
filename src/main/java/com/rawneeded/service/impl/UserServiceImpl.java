@@ -127,8 +127,8 @@ public class UserServiceImpl implements IUserService {
             throw new IllegalArgumentException(messagesUtil.getMessage("EMAIL_PASSWORD_NOT_VALID"));
         }
 
-        // Check if account is active
-        if (user.getAccountStatus() == AccountStatus.INACTIVE) {
+        // Check if account is active (skip check for SUPER_ADMIN)
+        if (user.getAccountStatus() == AccountStatus.INACTIVE && user.getRole() != Role.SUPER_ADMIN) {
             throw new AbstractException(messagesUtil.getMessage("ACCOUNT_INACTIVE"));
         }
 

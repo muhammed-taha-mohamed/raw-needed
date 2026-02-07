@@ -30,6 +30,16 @@ public class AdminAdSubscriptionController {
                 .build());
     }
 
+    @GetMapping("/approved")
+    @Operation(summary = "Get approved ad subscriptions", description = "Admin: list approved (active) supplier ad subscriptions")
+    public ResponseEntity<ResponsePayload> getApproved(Pageable pageable) {
+        Page<AdSubscriptionResponseDto> page = adSubscriptionService.getApprovedSubscriptions(pageable);
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of("success", true, "data", page))
+                .build());
+    }
+
     @PostMapping("/{subscriptionId}/approve")
     @Operation(summary = "Approve ad subscription", description = "Admin: approve supplier ad subscription after payment verification")
     public ResponseEntity<ResponsePayload> approve(@PathVariable String subscriptionId) {

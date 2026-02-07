@@ -4,10 +4,14 @@ import com.rawneeded.dto.subscription.CalculatePriceRequestDto;
 import com.rawneeded.dto.subscription.CalculatePriceResponseDto;
 import com.rawneeded.dto.subscription.UserSubscriptionRequestDto;
 import com.rawneeded.dto.subscription.UserSubscriptionResponseDto;
+import com.rawneeded.dto.MailDto;
 import com.rawneeded.enumeration.AccountStatus;
 import com.rawneeded.enumeration.BillingFrequency;
+import com.rawneeded.enumeration.NotificationType;
 import com.rawneeded.enumeration.PlanFeatures;
 import com.rawneeded.enumeration.PlanType;
+import com.rawneeded.enumeration.Role;
+import com.rawneeded.enumeration.TemplateName;
 import com.rawneeded.enumeration.UserSubscriptionStatus;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.jwt.JwtTokenProvider;
@@ -16,11 +20,16 @@ import com.rawneeded.model.PlanFeature;
 import com.rawneeded.model.ProductSearchesConfig;
 import com.rawneeded.model.SpecialOffer;
 import com.rawneeded.model.SubscriptionPlan;
+import com.rawneeded.dto.subscription.AddSearchesRequestDto;
+import com.rawneeded.dto.subscription.AddSearchesSubmitDto;
+import com.rawneeded.model.AddSearchesRequest;
 import com.rawneeded.model.User;
 import com.rawneeded.model.UserSubscription;
+import com.rawneeded.repository.AddSearchesRequestRepository;
 import com.rawneeded.repository.SubscriptionPlanRepository;
 import com.rawneeded.repository.UserRepository;
 import com.rawneeded.repository.UserSubscriptionRepository;
+import com.rawneeded.service.INotificationService;
 import com.rawneeded.service.IUserSubscriptionService;
 import com.rawneeded.util.MessagesUtil;
 import lombok.AllArgsConstructor;
@@ -33,11 +42,14 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static com.rawneeded.enumeration.UserSubscriptionStatus.APPROVED;
 import static com.rawneeded.enumeration.UserSubscriptionStatus.PENDING;
+import static com.rawneeded.enumeration.UserSubscriptionStatus.REJECTED;
 
 @Slf4j
 @Service
@@ -46,11 +58,14 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
 
     private static final String UPLOAD_DIR = "uploads/user-subscriptions/";
     private final UserSubscriptionRepository userSubscriptionRepository;
+    private final AddSearchesRequestRepository addSearchesRequestRepository;
     private final SubscriptionPlanRepository subscriptionPlanRepository;
     private final UserSubscriptionMapper subscriptionMapper;
     private final UserRepository userRepository;
     private final MessagesUtil messagesUtil;
     private final JwtTokenProvider jwtTokenProvider;
+    private final INotificationService notificationService;
+    private final NotificationService emailService;
 
     @Override
     public CalculatePriceResponseDto calculatePrice(CalculatePriceRequestDto requestDto) {
@@ -437,38 +452,216 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
 
 
     @Override
+    public AddSearchesRequestDto submitAddSearchesRequest(AddSearchesSubmitDto dto) {
+        String userId = jwtTokenProvider.getOwnerIdFromToken(messagesUtil.getAuthToken());
+        UserSubscription subscription = userSubscriptionRepository.findFirstByUserId(userId)
+                .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("SUBSCRIPTION_NOT_FOUND")));
+        if (subscription.getStatus() != APPROVED) {
+            throw new AbstractException(messagesUtil.getMessage("USER_SUB_PLAN_NOT_FOUND"));
+        }
+        if (subscription.getPlanId() == null) {
+            throw new AbstractException(messagesUtil.getMessage("USER_SUB_PLAN_NOT_FOUND"));
+        }
+        SubscriptionPlan plan = subscriptionPlanRepository.findById(subscription.getPlanId())
+                .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_SUB_PLAN_NOT_FOUND")));
+        if (plan.getProductSearchesConfig() == null || plan.getProductSearchesConfig().getPricePerSearch() == null) {
+            throw new AbstractException("Plan does not support adding searches");
+        }
+        double totalPrice = dto.getNumberOfSearches() * plan.getProductSearchesConfig().getPricePerSearch();
+        AddSearchesRequest request = AddSearchesRequest.builder()
+                .userId(userId)
+                .subscription(subscription)
+                .subscriptionId(subscription.getId())
+                .numberOfSearches(dto.getNumberOfSearches())
+                .totalPrice(totalPrice)
+                .receiptFilePath(dto.getReceiptFile() != null ? dto.getReceiptFile() : "")
+                .status(PENDING)
+                .createdAt(LocalDateTime.now())
+                .build();
+        request = addSearchesRequestRepository.save(request);
+        User user = userRepository.findById(userId).orElse(null);
+        String userName = user != null && user.getName() != null ? user.getName() : userId;
+        notifyAdminsOfPendingRequest(
+                request.getId(),
+                "ADD_SEARCHES_REQUEST",
+                "NOTIFICATION_PENDING_ADD_SEARCHES_TITLE",
+                "NOTIFICATION_PENDING_ADD_SEARCHES_MESSAGE",
+                "EMAIL_SUBJECT_PENDING_ADD_SEARCHES",
+                userName
+        );
+        return toAddSearchesRequestDto(request, subscription, plan);
+    }
+
+    @Override
+    public double calculateAddSearchesPrice(int numberOfSearches) {
+        String userId = jwtTokenProvider.getOwnerIdFromToken(messagesUtil.getAuthToken());
+        UserSubscription subscription = userSubscriptionRepository.findFirstByUserId(userId)
+                .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("SUBSCRIPTION_NOT_FOUND")));
+        if (subscription.getStatus() != APPROVED || subscription.getPlanId() == null) {
+            throw new AbstractException(messagesUtil.getMessage("USER_SUB_PLAN_NOT_FOUND"));
+        }
+        SubscriptionPlan plan = subscriptionPlanRepository.findById(subscription.getPlanId())
+                .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_SUB_PLAN_NOT_FOUND")));
+        if (plan.getProductSearchesConfig() == null || plan.getProductSearchesConfig().getPricePerSearch() == null) {
+            throw new AbstractException("Plan does not support adding searches");
+        }
+        return numberOfSearches * plan.getProductSearchesConfig().getPricePerSearch();
+    }
+
+    @Override
+    public Page<AddSearchesRequestDto> getPendingAddSearchesRequests(Pageable pageable) {
+        Page<AddSearchesRequest> page = addSearchesRequestRepository.findByStatusOrderByCreatedAtDesc(PENDING, pageable);
+        return page.map(req -> {
+            UserSubscription sub = req.getSubscription() != null ? req.getSubscription() : userSubscriptionRepository.findById(req.getSubscriptionId()).orElse(null);
+            SubscriptionPlan plan = sub != null && sub.getPlanId() != null ? subscriptionPlanRepository.findById(sub.getPlanId()).orElse(null) : null;
+            User user = sub != null ? userRepository.findById(sub.getUserId()).orElse(null) : null;
+            return AddSearchesRequestDto.builder()
+                    .id(req.getId())
+                    .userId(req.getUserId())
+                    .subscriptionId(req.getSubscriptionId())
+                    .planName(plan != null ? plan.getName() : null)
+                    .userOrganizationName(user != null ? user.getOrganizationName() : null)
+                    .numberOfSearches(req.getNumberOfSearches())
+                    .totalPrice(req.getTotalPrice())
+                    .receiptFilePath(req.getReceiptFilePath())
+                    .status(req.getStatus())
+                    .createdAt(req.getCreatedAt())
+                    .build();
+        });
+    }
+
+    @Override
+    public AddSearchesRequestDto approveAddSearchesRequest(String requestId) {
+        AddSearchesRequest request = addSearchesRequestRepository.findById(requestId)
+                .orElseThrow(() -> new AbstractException("Add searches request not found"));
+        if (request.getStatus() != PENDING) {
+            throw new AbstractException("Request is not pending");
+        }
+        UserSubscription subscription = userSubscriptionRepository.findById(request.getSubscriptionId())
+                .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("SUBSCRIPTION_NOT_FOUND")));
+        int currentTotal = subscription.getNumberOfSearches() != null ? subscription.getNumberOfSearches() : 0;
+        int currentRemaining = subscription.getRemainingSearches() != null ? subscription.getRemainingSearches() : 0;
+        subscription.setNumberOfSearches(currentTotal + request.getNumberOfSearches());
+        subscription.setRemainingSearches(currentRemaining + request.getNumberOfSearches());
+        userSubscriptionRepository.save(subscription);
+        request.setStatus(APPROVED);
+        request = addSearchesRequestRepository.save(request);
+        SubscriptionPlan plan = subscriptionPlanRepository.findById(subscription.getPlanId()).orElse(null);
+        return toAddSearchesRequestDto(request, subscription, plan);
+    }
+
+    @Override
+    public AddSearchesRequestDto rejectAddSearchesRequest(String requestId, String reason) {
+        AddSearchesRequest request = addSearchesRequestRepository.findById(requestId)
+                .orElseThrow(() -> new AbstractException("Add searches request not found"));
+        if (request.getStatus() != PENDING) {
+            throw new AbstractException("Request is not pending");
+        }
+        request.setStatus(REJECTED);
+        request = addSearchesRequestRepository.save(request);
+        UserSubscription subscription = userSubscriptionRepository.findById(request.getSubscriptionId()).orElse(null);
+        SubscriptionPlan plan = subscription != null ? subscriptionPlanRepository.findById(subscription.getPlanId()).orElse(null) : null;
+        return toAddSearchesRequestDto(request, subscription, plan);
+    }
+
+    private AddSearchesRequestDto toAddSearchesRequestDto(AddSearchesRequest req, UserSubscription sub, SubscriptionPlan plan) {
+        AtomicReference<String> userOrg = new AtomicReference<>(null);
+        if (sub != null && sub.getUserId() != null) {
+            userRepository.findById(sub.getUserId()).ifPresent(u -> userOrg.set(u.getOrganizationName()));
+        }
+        return AddSearchesRequestDto.builder()
+                .id(req.getId())
+                .userId(req.getUserId())
+                .subscriptionId(req.getSubscriptionId())
+                .planName(plan != null ? plan.getName() : null)
+                .userOrganizationName(userOrg.get() != null ? userOrg.get() : "")
+                .numberOfSearches(req.getNumberOfSearches())
+                .totalPrice(req.getTotalPrice())
+                .receiptFilePath(req.getReceiptFilePath())
+                .status(req.getStatus())
+                .createdAt(req.getCreatedAt())
+                .build();
+    }
+
+    @Override
     public boolean deductSearchAndAddPoints(String userId) {
         try {
-            log.info("Deducting search and adding points for user: {}", userId);
+            log.info("Deducting search (or using point) for user: {}", userId);
             
             UserSubscription subscription = userSubscriptionRepository.findFirstByUserId(userId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("SUBSCRIPTION_NOT_FOUND")));
             
             // Check if user has remaining searches
             if (subscription.getRemainingSearches() != null && subscription.getRemainingSearches() > 0) {
-                // Deduct one search
                 subscription.setRemainingSearches(subscription.getRemainingSearches() - 1);
-                // Add points (1 point per search)
-                subscription.setPoints((subscription.getPoints() != null ? subscription.getPoints() : 0) + 1);
                 userSubscriptionRepository.save(subscription);
                 return true;
             }
             
-            // If no remaining searches, check if user has points
+            // If no remaining searches, check if user has points (1 point = 1 search)
             if (subscription.getPoints() != null && subscription.getPoints() > 0) {
-                // Use points for search (1 point = 1 search)
                 subscription.setPoints(subscription.getPoints() - 1);
                 userSubscriptionRepository.save(subscription);
                 return true;
             }
             
-            // No searches and no points
             return false;
         } catch (AbstractException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Error deducting search and adding points: {}", e.getMessage());
+            log.error("Error deducting search: {}", e.getMessage());
             throw new AbstractException(messagesUtil.getMessage("SEARCH_DEDUCT_FAIL"));
+        }
+    }
+
+    private void notifyAdminsOfPendingRequest(String entityId, String entityType, String titleKey, String messageKey,
+                                             String emailSubjectKey, String userName) {
+        try {
+            List<User> admins = userRepository.findAllByRole(Role.SUPER_ADMIN);
+            String subject = messagesUtil.getMessage(titleKey);
+            String description = messagesUtil.getMessage(messageKey);
+            for (User admin : admins) {
+                notificationService.sendNotificationToUser(
+                        admin.getId(),
+                        NotificationType.GENERAL,
+                        titleKey,
+                        messageKey,
+                        entityId,
+                        entityType,
+                        userName != null ? userName : ""
+                );
+                if (admin.getEmail() != null && !admin.getEmail().isEmpty()) {
+                    try {
+                        emailService.sendEmail(MailDto.builder()
+                                .toEmail(admin.getEmail())
+                                .subject(messagesUtil.getMessage(emailSubjectKey))
+                                .templateName(TemplateName.COMPLAINT_CREATED_ADMIN)
+                                .model(Map.of(
+                                        "userName", userName != null ? userName : "",
+                                        "subject", subject != null ? subject : "",
+                                        "description", description != null ? description : ""
+                                ))
+                                .build());
+                    } catch (Exception e) {
+                        log.error("Failed to send pending-request email to admin: {}", e.getMessage());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error sending notifications/emails to admins: {}", e.getMessage());
+        }
+    }
+
+    @Override
+    public void addPointForSupplierResponse(String customerUserId) {
+        try {
+            userSubscriptionRepository.findFirstByUserId(customerUserId).ifPresent(sub -> {
+                sub.setPoints((sub.getPoints() != null ? sub.getPoints() : 0) + 1);
+                userSubscriptionRepository.save(sub);
+                log.info("Added 1 point for supplier response to customer: {}", customerUserId);
+            });
+        } catch (Exception e) {
+            log.warn("Could not add point for supplier response (customer {}): {}", customerUserId, e.getMessage());
         }
     }
 

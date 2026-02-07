@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,7 +16,15 @@ public interface UserSubscriptionRepository extends MongoRepository<UserSubscrip
     Optional<UserSubscription> findFirstByUserId(String userId);
     List<UserSubscription> findByPlanId(String planId);
     Optional<UserSubscription> findByUserIdAndStatus(String userId, UserSubscriptionStatus status);
-    Page<UserSubscription> findByStatus(Pageable pageable,UserSubscriptionStatus status);
+    Page<UserSubscription> findByStatus(Pageable pageable, UserSubscriptionStatus status);
 
-    List<UserSubscription> findByUserIdAndIdNot (String userId , String id);
+    List<UserSubscription> findByUserIdAndIdNot(String userId, String id);
+
+    long countByStatus(UserSubscriptionStatus status);
+
+    long countByStatusAndExpiryDateAfter(UserSubscriptionStatus status, LocalDateTime date);
+
+    long countBySubmissionDateAfter(LocalDateTime date);
+
+    Page<UserSubscription> findAllByOrderBySubmissionDateDesc(Pageable pageable);
 }

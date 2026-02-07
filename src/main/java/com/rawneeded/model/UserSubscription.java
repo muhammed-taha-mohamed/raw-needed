@@ -35,7 +35,7 @@ public class UserSubscription {
     // For Customer plans: Product searches
     private Integer numberOfSearches; // Total searches purchased
     private Integer remainingSearches; // Remaining searches
-    private Integer points; // Points earned from searches
+    private Integer points; // Points earned when supplier responds to customer order
 
     private List<PlanFeatures> selectedFeatures;
 

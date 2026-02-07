@@ -46,6 +46,7 @@ public class AdPackageServiceImpl implements IAdPackageService {
                 .nameEn(dto.getNameEn())
                 .numberOfDays(dto.getNumberOfDays())
                 .pricePerAd(dto.getPricePerAd())
+                .featuredPrice(dto.getFeaturedPrice() != null ? dto.getFeaturedPrice() : BigDecimal.ZERO)
                 .active(dto.getActive() != null ? dto.getActive() : true)
                 .sortOrder(order)
                 .createdAt(LocalDateTime.now())
@@ -92,6 +93,7 @@ public class AdPackageServiceImpl implements IAdPackageService {
                 .nameEn(p.getNameEn())
                 .numberOfDays(p.getNumberOfDays())
                 .pricePerAd(pricePerAd != null ? pricePerAd : java.math.BigDecimal.ZERO)
+                .featuredPrice(p.getFeaturedPrice() != null ? p.getFeaturedPrice() : java.math.BigDecimal.ZERO)
                 .active(p.isActive())
                 .sortOrder(p.getSortOrder())
                 .build();

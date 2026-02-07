@@ -17,6 +17,7 @@ public class AdPackageResponseDto {
     private String nameEn;
     private int numberOfDays;
     private BigDecimal pricePerAd;
+    private BigDecimal featuredPrice;
     private boolean active;
     private int sortOrder;
 }

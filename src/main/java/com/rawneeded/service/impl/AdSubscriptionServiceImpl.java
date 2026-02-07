@@ -1,8 +1,11 @@
 package com.rawneeded.service.impl;
 
+import com.rawneeded.dto.MailDto;
 import com.rawneeded.dto.advertisement.AdSubscriptionResponseDto;
 import com.rawneeded.dto.advertisement.CreateAdSubscriptionRequestDto;
+import com.rawneeded.enumeration.NotificationType;
 import com.rawneeded.enumeration.Role;
+import com.rawneeded.enumeration.TemplateName;
 import com.rawneeded.enumeration.UserSubscriptionStatus;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.jwt.JwtTokenProvider;
@@ -13,6 +16,7 @@ import com.rawneeded.repository.AdPackageRepository;
 import com.rawneeded.repository.AdSubscriptionRepository;
 import com.rawneeded.repository.UserRepository;
 import com.rawneeded.service.IAdSubscriptionService;
+import com.rawneeded.service.INotificationService;
 import com.rawneeded.util.MessagesUtil;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +27,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com.rawneeded.enumeration.UserSubscriptionStatus.APPROVED;
@@ -38,6 +43,8 @@ public class AdSubscriptionServiceImpl implements IAdSubscriptionService {
     private final UserRepository userRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final MessagesUtil messagesUtil;
+    private final INotificationService notificationService;
+    private final NotificationService emailService;
 
     @Override
     public AdSubscriptionResponseDto createSubscription(CreateAdSubscriptionRequestDto dto) {
@@ -56,7 +63,10 @@ public class AdSubscriptionServiceImpl implements IAdSubscriptionService {
             throw new AbstractException("Ad package is not active");
         }
         int numberOfAds = dto.getNumberOfAds() >= 1 ? dto.getNumberOfAds() : 1;
-        BigDecimal totalPrice = adPackage.getPricePerAd().multiply(BigDecimal.valueOf(numberOfAds));
+        boolean featured = dto.isFeatured();
+        BigDecimal basePrice = adPackage.getPricePerAd().multiply(BigDecimal.valueOf(numberOfAds));
+        BigDecimal featuredPrice = featured && adPackage.getFeaturedPrice() != null ? adPackage.getFeaturedPrice() : BigDecimal.ZERO;
+        BigDecimal totalPrice = basePrice.add(featuredPrice);
 
         LocalDateTime now = LocalDateTime.now();
         AdSubscription sub = AdSubscription.builder()
@@ -72,12 +82,54 @@ public class AdSubscriptionServiceImpl implements IAdSubscriptionService {
                 .numberOfDays(adPackage.getNumberOfDays())
                 .pricePerAd(adPackage.getPricePerAd())
                 .numberOfAds(numberOfAds)
+                .featured(featured)
                 .totalPrice(totalPrice)
                 .remainingAds(0)
                 .build();
         sub = adSubscriptionRepository.save(sub);
         log.info("Ad subscription created: {} for supplier: {}", sub.getId(), supplierId);
+        String userName = supplier.getName() != null ? supplier.getName() : supplierId;
+        notifyAdminsOfPendingAdSubscription(sub.getId(), userName);
         return toDto(sub);
+    }
+
+    private void notifyAdminsOfPendingAdSubscription(String entityId, String userName) {
+        try {
+            List<User> admins = userRepository.findAllByRole(Role.SUPER_ADMIN);
+            String titleKey = "NOTIFICATION_PENDING_AD_SUBSCRIPTION_TITLE";
+            String messageKey = "NOTIFICATION_PENDING_AD_SUBSCRIPTION_MESSAGE";
+            String subject = messagesUtil.getMessage(titleKey);
+            String description = messagesUtil.getMessage(messageKey);
+            for (User admin : admins) {
+                notificationService.sendNotificationToUser(
+                        admin.getId(),
+                        NotificationType.GENERAL,
+                        titleKey,
+                        messageKey,
+                        entityId,
+                        "AD_SUBSCRIPTION",
+                        userName != null ? userName : ""
+                );
+                if (admin.getEmail() != null && !admin.getEmail().isEmpty()) {
+                    try {
+                        emailService.sendEmail(MailDto.builder()
+                                .toEmail(admin.getEmail())
+                                .subject(messagesUtil.getMessage("EMAIL_SUBJECT_PENDING_AD_SUBSCRIPTION"))
+                                .templateName(TemplateName.COMPLAINT_CREATED_ADMIN)
+                                .model(Map.of(
+                                        "userName", userName != null ? userName : "",
+                                        "subject", subject != null ? subject : "",
+                                        "description", description != null ? description : ""
+                                ))
+                                .build());
+                    } catch (Exception e) {
+                        log.error("Failed to send pending ad-subscription email to admin: {}", e.getMessage());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error sending notifications/emails to admins: {}", e.getMessage());
+        }
     }
 
     @Override
@@ -94,6 +146,11 @@ public class AdSubscriptionServiceImpl implements IAdSubscriptionService {
     }
 
     @Override
+    public Page<AdSubscriptionResponseDto> getApprovedSubscriptions(Pageable pageable) {
+        return adSubscriptionRepository.findByStatus(pageable, APPROVED).map(this::toDto);
+    }
+
+    @Override
     public AdSubscriptionResponseDto approve(String subscriptionId) {
         AdSubscription sub = adSubscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new AbstractException("Ad subscription not found"));
@@ -105,7 +162,7 @@ public class AdSubscriptionServiceImpl implements IAdSubscriptionService {
         sub.setStatus(APPROVED);
         sub.setApprovedAt(now);
         sub.setStartDate(now);
-        sub.setEndDate(now.plusDays(sub.getNumberOfDays()));
+        // No endDate on subscription: validity is per ad (each ad gets numberOfDays when created)
         sub.setRemainingAds(sub.getNumberOfAds());
         sub = adSubscriptionRepository.save(sub);
         log.info("Ad subscription approved: {}", subscriptionId);
@@ -127,19 +184,17 @@ public class AdSubscriptionServiceImpl implements IAdSubscriptionService {
 
     @Override
     public boolean hasActiveSubscription(String supplierId) {
-        LocalDateTime now = LocalDateTime.now();
         return adSubscriptionRepository
-                .findFirstBySupplierIdAndStatusAndEndDateAfterAndRemainingAdsGreaterThanOrderByApprovedAtDesc(
-                        supplierId, APPROVED, now, 0)
+                .findFirstBySupplierIdAndStatusAndRemainingAdsGreaterThanOrderByApprovedAtDesc(
+                        supplierId, APPROVED, 0)
                 .isPresent();
     }
 
     @Override
     public void consumeOneAd(String supplierId) {
-        LocalDateTime now = LocalDateTime.now();
         adSubscriptionRepository
-                .findFirstBySupplierIdAndStatusAndEndDateAfterAndRemainingAdsGreaterThanOrderByApprovedAtDesc(
-                        supplierId, APPROVED, now, 0)
+                .findFirstBySupplierIdAndStatusAndRemainingAdsGreaterThanOrderByApprovedAtDesc(
+                        supplierId, APPROVED, 0)
                 .ifPresent(sub -> {
                     sub.setRemainingAds(Math.max(0, sub.getRemainingAds() - 1));
                     adSubscriptionRepository.save(sub);
@@ -147,9 +202,28 @@ public class AdSubscriptionServiceImpl implements IAdSubscriptionService {
     }
 
     private AdSubscriptionResponseDto toDto(AdSubscription s) {
+        String supplierName = null;
+        String supplierOrganizationName = null;
+        String supplierImage = null;
+        if (s.getSupplier() != null) {
+            supplierName = s.getSupplier().getName();
+            supplierOrganizationName = s.getSupplier().getOrganizationName();
+            supplierImage = s.getSupplier().getProfileImage();
+        } else if (s.getSupplierId() != null) {
+            var userOpt = userRepository.findById(s.getSupplierId());
+            if (userOpt.isPresent()) {
+                User u = userOpt.get();
+                supplierName = u.getName();
+                supplierOrganizationName = u.getOrganizationName();
+                supplierImage = u.getProfileImage();
+            }
+        }
         return AdSubscriptionResponseDto.builder()
                 .id(s.getId())
                 .supplierId(s.getSupplierId())
+                .supplierName(supplierName)
+                .supplierOrganizationName(supplierOrganizationName)
+                .supplierImage(supplierImage)
                 .adPackageId(s.getAdPackageId())
                 .status(s.getStatus())
                 .paymentProofPath(s.getPaymentProofPath())
@@ -162,6 +236,7 @@ public class AdSubscriptionServiceImpl implements IAdSubscriptionService {
                 .numberOfDays(s.getNumberOfDays())
                 .pricePerAd(s.getPricePerAd() != null ? s.getPricePerAd() : s.getPrice())
                 .numberOfAds(s.getNumberOfAds())
+                .featured(s.isFeatured())
                 .totalPrice(s.getTotalPrice())
                 .remainingAds(s.getRemainingAds())
                 .build();

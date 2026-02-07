@@ -1,6 +1,7 @@
 package com.rawneeded.dto.dashboard;
 
 import com.rawneeded.dto.RFQ.RFQOrderResponseDto;
+import com.rawneeded.dto.subscription.UserSubscriptionResponseDto;
 import com.rawneeded.dto.user.SupplierInfo;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -45,11 +46,23 @@ public class DashboardStatsDto {
     private SupplierInfo mostRequestedSupplier;
     private long mostRequestedSupplierOrderCount;
     
-    // Screen-specific statistics
-    private long cartItemsCount;
-    private long vendorsCount;
-    private long productsCount;
-    private long marketRequestsCount;
-    private long teamMembersCount;
-    private long complaintsCount;
+    // User Statistics
+    private long totalUsers;
+    private long totalSuppliers;
+    private long totalCustomers;
+    
+    // Subscription Statistics
+    private long totalSubscriptions;
+    private long activeSubscriptions;
+    private long pendingSubscriptions;
+    private long subscriptionsThisMonth;
+    
+    // Ad Subscription Statistics
+    private long totalAdSubscriptions;
+    private long activeAdSubscriptions;
+    private long pendingAdSubscriptions;
+    private long adSubscriptionsThisMonth;
+    
+    // Historical Subscriptions (old subscriptions when user renews)
+    private List<UserSubscriptionResponseDto> historicalSubscriptions;
 }

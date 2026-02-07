@@ -13,15 +13,17 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends MongoRepository<User, String> {
 
-    Optional<User> findByEmailIgnoreCase (String email);
+    Optional<User> findByEmailIgnoreCase(String email);
 
-    Optional<User> findByEmailAndForgetPasswordOTP(String email , String otp);
+    Optional<User> findByEmailAndForgetPasswordOTP(String email, String otp);
 
     boolean existsByRole(Role role);
 
-    Page<User> findAllByOwnerId(String ownerId , Pageable pageable);
+    long countByRole(Role role);
 
-    Page<User> findAllByRole(Role role , Pageable pageable);
+    Page<User> findAllByOwnerId(String ownerId, Pageable pageable);
+
+    Page<User> findAllByRole(Role role, Pageable pageable);
 
     List<User> findAllByRole(Role role);
 

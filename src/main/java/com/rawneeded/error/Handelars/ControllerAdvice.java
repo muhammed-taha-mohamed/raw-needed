@@ -4,6 +4,7 @@ import com.rawneeded.dto.ResponsePayload;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.error.exceptions.AbstractUnauthorizedException;
 import com.rawneeded.error.exceptions.AccountInactiveException;
+import com.rawneeded.error.exceptions.NoSearchesQuotaException;
 import com.rawneeded.error.exceptions.PlanLimitExceededException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -60,6 +61,18 @@ public class ControllerAdvice {
     @ExceptionHandler({AccountInactiveException.class})
     public ResponseEntity<ResponsePayload> handleAccountInactiveException(AccountInactiveException e) {
         return error(FORBIDDEN, e, e.getMessage());
+    }
+
+    @ExceptionHandler({NoSearchesQuotaException.class})
+    public ResponseEntity<ResponsePayload> handleNoSearchesQuotaException(NoSearchesQuotaException e) {
+        log.warn("No searches quota: {}", e.getMessage());
+        return ResponseEntity.status(BAD_REQUEST).body(
+                ResponsePayload.builder()
+                        .error(Map.of(
+                                "errorMessage", e.getMessage(),
+                                "errorCode", NoSearchesQuotaException.ERROR_CODE))
+                        .build()
+        );
     }
 
 }

@@ -1,9 +1,10 @@
 package com.rawneeded.controller;
 
 import com.rawneeded.dto.ResponsePayload;
+import com.rawneeded.dto.subscription.AddSearchesRequestDto;
+import com.rawneeded.dto.subscription.AddSearchesSubmitDto;
 import com.rawneeded.dto.subscription.CalculatePriceRequestDto;
 import com.rawneeded.dto.subscription.CalculatePriceResponseDto;
-import com.rawneeded.dto.subscription.CreateSubscriptionRequestDto;
 import com.rawneeded.dto.subscription.UserSubscriptionRequestDto;
 import com.rawneeded.dto.subscription.UserSubscriptionResponseDto;
 import com.rawneeded.jwt.JwtTokenProvider;
@@ -68,5 +69,29 @@ public class UserSubscriptionController {
                 .build());
     }
 
+    @PostMapping("/add-searches")
+    @Operation(summary = "Request to add more searches",
+            description = "Submit a request to add more product searches to current subscription (partial renewal). Payment receipt is optional.")
+    public ResponseEntity<ResponsePayload> submitAddSearches(@Valid @RequestBody AddSearchesSubmitDto dto) {
+        AddSearchesRequestDto result = userSubscriptionService.submitAddSearchesRequest(dto);
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of(
+                        "success", true,
+                        "data", result))
+                .build());
+    }
+
+    @GetMapping("/add-searches/price")
+    @Operation(summary = "Calculate price for adding searches")
+    public ResponseEntity<ResponsePayload> calculateAddSearchesPrice(@RequestParam int numberOfSearches) {
+        double price = userSubscriptionService.calculateAddSearchesPrice(numberOfSearches);
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of(
+                        "success", true,
+                        "data", Map.of("totalPrice", price)))
+                .build());
+    }
 
 }

@@ -19,6 +19,8 @@ public class UpdateAdPackageRequestDto {
     private Integer numberOfDays;
     @Min(0)
     private BigDecimal pricePerAd;
+    @Min(0)
+    private BigDecimal featuredPrice;
     private Boolean active;
     private Integer sortOrder;
 }

@@ -30,40 +30,42 @@ public class NotificationService {
     private final MessagesUtil messagesUtil;
 
     public void sendEmail(MailDto mailDto) {
-        try {
-            log.info("Start sending email to: {}", mailDto.getToEmail());
+        new Thread(() -> {
+            try {
+                log.info("Start sending email to: {}", mailDto.getToEmail());
 
-            // Ensure model is mutable
-            Map<String, Object> model = mailDto.getModel();
-            if (model == null) {
-                model = new HashMap<>();
-            } else {
-                model = new HashMap<>(model);
+                // Ensure model is mutable
+                Map<String, Object> model = mailDto.getModel();
+                if (model == null) {
+                    model = new HashMap<>();
+                } else {
+                    model = new HashMap<>(model);
+                }
+
+                if (logoUrl != null && !logoUrl.isEmpty()) {
+                    model.put("logoUrl", logoUrl);
+                }
+                mailDto.setModel(model);
+
+                MimeMessage message = javaMailSender.createMimeMessage();
+                MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+                helper.setFrom("info@rawneeded.com");
+                helper.setTo(mailDto.getToEmail());
+                helper.setSubject(mailDto.getSubject());
+
+                // Process Freemarker template
+                String content = FreeMarkerTemplateUtils.processTemplateIntoString(
+                        freemarkerConfig.getTemplate(mailDto.getTemplateName().getName()), mailDto.getModel());
+
+                helper.setText(content, true);
+
+                javaMailSender.send(message);
+                log.info("Email sent successfully to: {}", mailDto.getToEmail());
+            } catch (Exception e) {
+                log.error("Failed to send email: {}", e.getMessage());
+                throw new AbstractException(messagesUtil.getMessage("NOTIFICATION_EMAIL_FAIL"));
             }
-
-            if (logoUrl != null && !logoUrl.isEmpty()) {
-                model.put("logoUrl", logoUrl);
-            }
-            mailDto.setModel(model);
-
-            MimeMessage message = javaMailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom("info@rawneeded.com");
-            helper.setTo(mailDto.getToEmail());
-            helper.setSubject(mailDto.getSubject());
-
-            // Process Freemarker template
-            String content = FreeMarkerTemplateUtils.processTemplateIntoString(
-                    freemarkerConfig.getTemplate(mailDto.getTemplateName().getName()), mailDto.getModel());
-
-            helper.setText(content, true);
-
-            javaMailSender.send(message);
-            log.info("Email sent successfully to: {}", mailDto.getToEmail());
-        } catch (Exception e) {
-            log.error("Failed to send email: {}", e.getMessage());
-            throw new AbstractException(messagesUtil.getMessage("NOTIFICATION_EMAIL_FAIL"));
-        }
+        }).start();
     }
 
 }

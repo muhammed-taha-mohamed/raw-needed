@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 public interface UserSubscriptionMapper {
     @Mapping(target = "planName", source = "plan.name")
     @Mapping(target = "userName", source = "user.name")
+    @Mapping(target = "userOrganizationName", source = "user.organizationName")
     @Mapping(target = "userImage", source = "user.profileImage")
     UserSubscriptionResponseDto toResponseDto(UserSubscription userSubscription);
 

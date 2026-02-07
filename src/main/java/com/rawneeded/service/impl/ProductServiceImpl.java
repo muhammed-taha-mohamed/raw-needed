@@ -6,6 +6,7 @@ import com.rawneeded.dto.product.ProductRequestDTO;
 import com.rawneeded.dto.product.ProductResponseDTO;
 import com.rawneeded.enumeration.Role;
 import com.rawneeded.error.exceptions.AbstractException;
+import com.rawneeded.error.exceptions.NoSearchesQuotaException;
 import com.rawneeded.jwt.JwtTokenProvider;
 import com.rawneeded.mapper.ProductMapper;
 import com.rawneeded.model.Category;
@@ -155,12 +156,20 @@ public class ProductServiceImpl implements IProductService {
             Role role = tokenProvider.getRoleFromToken(token);
             String userId = tokenProvider.getOwnerIdFromToken(token);
 
-            // Check if user is customer or customer staff - need to deduct search
+            // Customer: deduct search only when (any filter applied OR page >= 2). First two pages (0,1) with no filter are free.
             if (role == Role.CUSTOMER_OWNER || role == Role.CUSTOMER_STAFF) {
-                // Deduct search and add points
-                boolean canSearch = userSubscriptionService.deductSearchAndAddPoints(userId);
-                if (!canSearch) {
-                    throw new AbstractException(messagesUtil.getMessage("NO_SEARCHES_OR_POINTS_AVAILABLE"));
+                boolean hasFilter = (filterDTO.getName() != null && !filterDTO.getName().isEmpty())
+                        || (filterDTO.getOrigin() != null && !filterDTO.getOrigin().isEmpty())
+                        || (filterDTO.getSupplierId() != null && !filterDTO.getSupplierId().isEmpty())
+                        || (filterDTO.getCategoryId() != null && !filterDTO.getCategoryId().isEmpty())
+                        || (filterDTO.getSubCategoryId() != null && !filterDTO.getSubCategoryId().isEmpty());
+                int pageNumber = pageable.getPageNumber();
+                boolean shouldCharge = hasFilter || pageNumber >= 1;
+                if (shouldCharge) {
+                    boolean canSearch = userSubscriptionService.deductSearchAndAddPoints(userId);
+                    if (!canSearch) {
+                        throw new NoSearchesQuotaException(messagesUtil.getMessage("NO_SEARCHES_OR_POINTS_AVAILABLE"));
+                    }
                 }
             }
 

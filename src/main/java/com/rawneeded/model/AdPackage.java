@@ -26,6 +26,8 @@ public class AdPackage {
     private int numberOfDays;
     /** Price per ad (EGP) - set by admin */
     private BigDecimal pricePerAd;
+    /** Extra price for featuring ad at top (EGP) - set by admin */
+    private BigDecimal featuredPrice;
     /** @deprecated Use pricePerAd - kept for backward compatibility */
     @Deprecated
     private BigDecimal price;

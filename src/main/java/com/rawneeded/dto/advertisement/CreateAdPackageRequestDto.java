@@ -23,6 +23,9 @@ public class CreateAdPackageRequestDto {
     @NotNull
     @Min(0)
     private BigDecimal pricePerAd;
+    /** Extra price for featuring ad at top (EGP) */
+    @Min(0)
+    private BigDecimal featuredPrice;
     private Boolean active;
     private Integer sortOrder;
 }
