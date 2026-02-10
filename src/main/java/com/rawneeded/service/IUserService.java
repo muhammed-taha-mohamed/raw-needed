@@ -6,6 +6,7 @@ import com.rawneeded.dto.auth.LoginDTO;
 import com.rawneeded.dto.auth.LoginResponseDTO;
 import com.rawneeded.dto.staff.CreateStaffDto;
 import com.rawneeded.dto.user.CreateUserDto;
+import com.rawneeded.dto.user.SearchOperationsSummaryDto;
 import com.rawneeded.dto.user.SupplierInfo;
 import com.rawneeded.dto.user.UserRequestDto;
 import com.rawneeded.dto.user.UserResponseDto;
@@ -36,6 +37,8 @@ public interface IUserService {
     Page<SupplierInfo> getAllSuppliers(Pageable pageable, String category);
 
     List<SupplierInfo> getAllSuppliers(String category);
+
+    List<SearchOperationsSummaryDto> getSearchOperationsSummary(Integer year, Integer month);
 
     /* =========== ADMIN USER MANAGEMENT =========== */
     Page<UserResponseDto> getAllUsers(Pageable pageable);

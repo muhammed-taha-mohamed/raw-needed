@@ -292,10 +292,10 @@ public class RFQServiceImpl implements IRFQService {
             Page<RFQOrderLine> lines;
 
             if (status == null) {
-                lines = lineRepository.findBySupplierId(pageable, supplierId);
+                lines = lineRepository.findBySupplierIdOrderByIdDesc(supplierId, pageable);
             } else {
 
-                lines = lineRepository.findBySupplierIdAndStatus(pageable, supplierId, status);
+                lines = lineRepository.findBySupplierIdAndStatusOrderByIdDesc(supplierId, status, pageable);
             }
 
             return lines.map(rfqMapper::toOrderLineResponseDto);
@@ -464,7 +464,7 @@ public class RFQServiceImpl implements IRFQService {
                     .orElseThrow(() ->
                             new AbstractException(messagesUtil.getMessage("RFQ_LINE_NOT_FOUND")));
 
-            if (line.getStatus() != LineStatus.PENDING) {
+            if (line.getStatus() != LineStatus.PENDING && line.getStatus() != LineStatus.RESPONDED) {
                 throw new AbstractException(
                         messagesUtil.getMessage("RFQ_LINE_ALREADY_HANDLED"));
             }
@@ -578,6 +578,11 @@ public class RFQServiceImpl implements IRFQService {
                     .productId(item.getId())
                     .productName(item.getName())
                     .productImage(item.getImage())
+                    .unit(item.getUnit())
+                    .categoryId(item.getCategoryId())
+                    .subCategoryId(item.getSubCategoryId())
+                    .extraFieldValues(item.getExtraFieldValues())
+                    .manualOrder(item.getId() == null || item.getId().isBlank())
                     .quantity(item.getQuantity())
                     .status(LineStatus.PENDING)
                     .customerApproved(null)

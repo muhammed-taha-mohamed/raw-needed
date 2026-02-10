@@ -11,11 +11,14 @@ import com.rawneeded.jwt.JwtTokenProvider;
 import com.rawneeded.mapper.ProductMapper;
 import com.rawneeded.model.Category;
 import com.rawneeded.model.Product;
+import com.rawneeded.model.SearchActivity;
 import com.rawneeded.model.SubCategory;
 import com.rawneeded.model.User;
 import com.rawneeded.repository.CategoryRepository;
 import com.rawneeded.repository.ProductRepository;
+import com.rawneeded.repository.SearchActivityRepository;
 import com.rawneeded.repository.SubCategoryRepository;
+import com.rawneeded.repository.UserRepository;
 import com.rawneeded.service.IProductService;
 import com.rawneeded.service.IUserSubscriptionService;
 import com.rawneeded.util.MessagesUtil;
@@ -47,6 +50,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -67,6 +71,8 @@ public class ProductServiceImpl implements IProductService {
     private final MongoTemplate mongoTemplate;
     private final CategoryRepository categoryRepository;
     private final SubCategoryRepository subCategoryRepository;
+    private final UserRepository userRepository;
+    private final SearchActivityRepository searchActivityRepository;
     private final JwtTokenProvider tokenProvider;
     private final IUserSubscriptionService userSubscriptionService;
 
@@ -84,6 +90,7 @@ public class ProductServiceImpl implements IProductService {
             checkProductNameUnique(supplierId, dto.getName(), null);
             
             Product product = productMapper.toEntity(dto);
+            validateSupplierCategoryAccess(supplierId, dto.getCategoryId());
 
             // set category
             setCategory(product, dto);
@@ -116,6 +123,7 @@ public class ProductServiceImpl implements IProductService {
                 
                 Product newProduct = product.get();
                 productMapper.update(newProduct, dto);
+                validateSupplierCategoryAccess(supplierId, dto.getCategoryId());
 
                 // set category
                 setCategory(newProduct, dto);
@@ -158,11 +166,14 @@ public class ProductServiceImpl implements IProductService {
 
             // Customer: deduct search only when (any filter applied OR page >= 2). First two pages (0,1) with no filter are free.
             if (role == Role.CUSTOMER_OWNER || role == Role.CUSTOMER_STAFF) {
+                String actorUserId = tokenProvider.getIdFromToken(token);
                 boolean hasFilter = (filterDTO.getName() != null && !filterDTO.getName().isEmpty())
                         || (filterDTO.getOrigin() != null && !filterDTO.getOrigin().isEmpty())
                         || (filterDTO.getSupplierId() != null && !filterDTO.getSupplierId().isEmpty())
                         || (filterDTO.getCategoryId() != null && !filterDTO.getCategoryId().isEmpty())
                         || (filterDTO.getSubCategoryId() != null && !filterDTO.getSubCategoryId().isEmpty());
+
+                recordSearchActivity(userId, actorUserId, hasFilter);
                 int pageNumber = pageable.getPageNumber();
                 boolean shouldCharge = hasFilter || pageNumber >= 1;
                 if (shouldCharge) {
@@ -438,11 +449,12 @@ public class ProductServiceImpl implements IProductService {
         try {
             String token = messagesUtil.getAuthToken();
             Role role = tokenProvider.getRoleFromToken(token);
+            String supplierId = tokenProvider.getOwnerIdFromToken(token);
             if (role != Role.SUPPLIER_OWNER && role != Role.SUPPLIER_STAFF) {
                 throw new AbstractException(messagesUtil.getMessage("UNAUTHORIZED_ACCESS"));
             }
 
-            List<Category> categories = categoryRepository.findAll();
+            List<Category> categories = resolveSupplierCategories(supplierId);
             XSSFWorkbook workbook = new XSSFWorkbook();
             DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
@@ -652,6 +664,8 @@ public class ProductServiceImpl implements IProductService {
             String token = messagesUtil.getAuthToken();
             Role role = tokenProvider.getRoleFromToken(token);
             String supplierId = tokenProvider.getOwnerIdFromToken(token);
+            List<Category> allowedCategories = resolveSupplierCategories(supplierId);
+            String allowedCategoryId = allowedCategories.size() == 1 ? allowedCategories.get(0).getId() : null;
             if (role != Role.SUPPLIER_OWNER && role != Role.SUPPLIER_STAFF) {
                 throw new AbstractException(messagesUtil.getMessage("UNAUTHORIZED_ACCESS"));
             }
@@ -699,6 +713,10 @@ public class ProductServiceImpl implements IProductService {
                     // Columns 9 & 10: Category ID and SubCategory ID (filled by formula when user selects from dropdown)
                     String categoryIdFromSheet = getCellString(row.getCell(9));
                     String subCategoryIdFromSheet = getCellString(row.getCell(10));
+
+                    if (allowedCategoryId != null && categoryIdFromSheet != null && !allowedCategoryId.equals(categoryIdFromSheet)) {
+                        throw new AbstractException("Category is not allowed for this supplier");
+                    }
 
 
                     ProductRequestDTO dto = new ProductRequestDTO();
@@ -806,6 +824,39 @@ public class ProductServiceImpl implements IProductService {
             } catch (Exception e2) {
                 return null;
             }
+        }
+    }
+
+    private List<Category> resolveSupplierCategories(String supplierOwnerId) {
+        User supplier = userRepository.findById(supplierOwnerId).orElse(null);
+        if (supplier != null && supplier.getCategory() != null && supplier.getCategory().getId() != null) {
+            return List.of(supplier.getCategory());
+        }
+        // Backward compatibility for suppliers that still don't have category set.
+        return categoryRepository.findAll();
+    }
+
+    private void validateSupplierCategoryAccess(String supplierOwnerId, String categoryId) {
+        if (categoryId == null || categoryId.isBlank()) return;
+        User supplier = userRepository.findById(supplierOwnerId).orElse(null);
+        if (supplier == null || supplier.getCategory() == null || supplier.getCategory().getId() == null) return;
+        if (!supplier.getCategory().getId().equals(categoryId)) {
+            throw new AbstractException("Category is not allowed for this supplier");
+        }
+    }
+
+    private void recordSearchActivity(String ownerId, String userId, boolean hasFilter) {
+        try {
+            User user = userRepository.findById(userId).orElse(null);
+            searchActivityRepository.save(SearchActivity.builder()
+                    .ownerId(ownerId)
+                    .userId(userId)
+                    .userName(user != null ? user.getName() : null)
+                    .searchedAt(LocalDateTime.now())
+                    .hasFilters(hasFilter)
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to record search activity: {}", e.getMessage());
         }
     }
 }

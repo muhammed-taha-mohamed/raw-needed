@@ -44,6 +44,7 @@ public interface ProductMapper {
                 .id(category.getId())
                 .name(category.getName())
                 .arabicName(category.getArabicName())
+                .extraFields(category.getExtraFields())
                 .build();
     }
 
@@ -70,7 +71,9 @@ public interface ProductMapper {
 
     @Mappings({
             @Mapping(source ="supplier.id" , target = "supplierId" ),
-            @Mapping(source ="supplier.name" , target = "supplierName" )
+            @Mapping(source ="supplier.name" , target = "supplierName" ),
+            @Mapping(source = "category.id", target = "categoryId"),
+            @Mapping(source = "subCategory.id", target = "subCategoryId")
     })
     CartItemDTO toCartItemDto(Product product);
 }

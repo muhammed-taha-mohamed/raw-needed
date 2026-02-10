@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.Map;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -27,4 +28,5 @@ public class ProductResponseDTO {
     private String unit;
     private LocalDate productionDate;
     private LocalDate expirationDate;
+    private Map<String, String> extraFieldValues;
 }

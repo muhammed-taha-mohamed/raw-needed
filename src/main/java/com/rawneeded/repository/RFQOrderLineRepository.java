@@ -12,8 +12,8 @@ public interface RFQOrderLineRepository extends MongoRepository<RFQOrderLine, St
 
     List<RFQOrderLine> findByOrderId(String orderId);
 
-    Page<RFQOrderLine> findBySupplierIdAndStatus(Pageable pageable, String supplierId, LineStatus status);
-    Page<RFQOrderLine> findBySupplierId(Pageable pageable,String supplierId);
+    Page<RFQOrderLine> findBySupplierIdAndStatusOrderByIdDesc(String supplierId, LineStatus status, Pageable pageable);
+    Page<RFQOrderLine> findBySupplierIdOrderByIdDesc(String supplierId, Pageable pageable);
     
     // Statistics queries
     long countBySupplierId(String supplierId);

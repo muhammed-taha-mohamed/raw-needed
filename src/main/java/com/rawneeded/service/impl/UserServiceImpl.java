@@ -4,6 +4,7 @@ import com.rawneeded.dto.MailDto;
 import com.rawneeded.dto.auth.*;
 import com.rawneeded.dto.staff.CreateStaffDto;
 import com.rawneeded.dto.user.CreateUserDto;
+import com.rawneeded.dto.user.SearchOperationsSummaryDto;
 import com.rawneeded.dto.user.SupplierInfo;
 import com.rawneeded.dto.user.UserRequestDto;
 import com.rawneeded.dto.user.UserResponseDto;
@@ -30,12 +31,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
+import org.springframework.data.mongodb.core.aggregation.AggregationResults;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.HashMap;
 
 import static com.rawneeded.enumeration.TemplateName.FORGET_PASSWORD_OTP;
 import static com.rawneeded.enumeration.TemplateName.WELCOME_TEMPLATE;
@@ -46,6 +54,7 @@ import static com.rawneeded.enumeration.TemplateName.WELCOME_TEMPLATE;
 public class UserServiceImpl implements IUserService {
 
     private final UserRepository userRepository;
+    private final MongoTemplate mongoTemplate;
     private final CategoryRepository categoryRepository;
     private final SubCategoryRepository subCategoryRepository;
     private final JwtTokenProvider tokenProvider;
@@ -369,6 +378,68 @@ public class UserServiceImpl implements IUserService {
             throw e;
         } catch (Exception e) {
             log.error("Failed to get suppliers: {}", e.getMessage());
+            throw new AbstractException(e.getMessage());
+        }
+    }
+
+    @Override
+    public List<SearchOperationsSummaryDto> getSearchOperationsSummary(Integer year, Integer month) {
+        try {
+            String token = messagesUtil.getAuthToken();
+            String ownerId = tokenProvider.getOwnerIdFromToken(token);
+
+            YearMonth ym = (year != null && month != null)
+                    ? YearMonth.of(year, month)
+                    : YearMonth.now();
+            LocalDateTime start = ym.atDay(1).atStartOfDay();
+            LocalDateTime end = ym.plusMonths(1).atDay(1).atStartOfDay();
+
+            Aggregation aggregation = Aggregation.newAggregation(
+                    Aggregation.match(Criteria.where("ownerId").is(ownerId)
+                            .and("searchedAt").gte(start).lt(end)),
+                    Aggregation.group("userId")
+                            .first("userName").as("userName")
+                            .count().as("searchCount"),
+                    Aggregation.project("userName", "searchCount")
+                            .and("_id").as("userId"),
+                    Aggregation.sort(org.springframework.data.domain.Sort.Direction.DESC, "searchCount")
+            );
+
+            AggregationResults<SearchOperationsSummaryDto> aggResult =
+                    mongoTemplate.aggregate(aggregation, "searchActivity", SearchOperationsSummaryDto.class);
+
+            Map<String, SearchOperationsSummaryDto> summaryMap = new HashMap<>();
+            for (SearchOperationsSummaryDto dto : aggResult.getMappedResults()) {
+                summaryMap.put(dto.getUserId(), dto);
+            }
+
+            // Include owner + staff even with zero searches
+            List<User> users = userRepository.findAllByOwnerId(ownerId);
+            userRepository.findById(ownerId).ifPresent(users::add);
+
+            for (User user : users) {
+                summaryMap.putIfAbsent(
+                        user.getId(),
+                        SearchOperationsSummaryDto.builder()
+                                .userId(user.getId())
+                                .userName(user.getName())
+                                .searchCount(0L)
+                                .build()
+                );
+            }
+
+            return summaryMap.values().stream()
+                    .sorted((a, b) -> {
+                        int byCount = Long.compare(b.getSearchCount() == null ? 0L : b.getSearchCount(),
+                                a.getSearchCount() == null ? 0L : a.getSearchCount());
+                        if (byCount != 0) return byCount;
+                        String an = a.getUserName() == null ? "" : a.getUserName();
+                        String bn = b.getUserName() == null ? "" : b.getUserName();
+                        return an.compareToIgnoreCase(bn);
+                    })
+                    .toList();
+        } catch (Exception e) {
+            log.error("Failed to fetch search operations summary: {}", e.getMessage());
             throw new AbstractException(e.getMessage());
         }
     }

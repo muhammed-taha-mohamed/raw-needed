@@ -22,4 +22,6 @@ public class Category {
     private String arabicName;
 
     private boolean active = true;
+
+    private List<CategoryExtraField> extraFields;
 }

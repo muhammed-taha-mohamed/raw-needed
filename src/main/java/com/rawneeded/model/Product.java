@@ -10,6 +10,7 @@ import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDate;
+import java.util.Map;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -36,5 +37,6 @@ public class Product {
     private String unit;
     private LocalDate productionDate;
     private LocalDate expirationDate;
+    private Map<String, String> extraFieldValues;
 
 }

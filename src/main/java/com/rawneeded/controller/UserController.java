@@ -144,4 +144,22 @@ public class UserController {
                 .build()
         );
     }
+
+    @GetMapping("/search-operations/summary")
+    @Operation(
+            summary = "Get search operations summary for team",
+            description = "Returns per-user search counts for a given month/year under the current owner"
+    )
+    public ResponseEntity<ResponsePayload> getSearchOperationsSummary(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month
+    ) {
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of(
+                        "success", true,
+                        "data", userService.getSearchOperationsSummary(year, month)))
+                .build()
+        );
+    }
 }

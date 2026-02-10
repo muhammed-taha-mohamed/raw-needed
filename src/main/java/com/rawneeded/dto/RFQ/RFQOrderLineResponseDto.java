@@ -8,6 +8,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Map;
+
 @Data
 @Builder
 @AllArgsConstructor
@@ -31,6 +33,11 @@ public class RFQOrderLineResponseDto {
     private String productId;
     private String productName;
     private String productImage;
+    private String unit;
+    private String categoryId;
+    private String subCategoryId;
+    private Map<String, String> extraFieldValues;
+    private Boolean manualOrder;
     private float quantity;
 
     private LineStatus status;
