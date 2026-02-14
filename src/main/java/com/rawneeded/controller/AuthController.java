@@ -49,6 +49,16 @@ public class AuthController {
         );
     }
 
+    @PostMapping("/logout")
+    @Operation(summary = "Logout and invalidate current session.",
+            description = "Invalidates the user session so a new login can proceed without 513.")
+    public ResponseEntity<ResponsePayload> logout() {
+        userService.logout();
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of("success", true, "message", "Logged out successfully"))
+                .build());
+    }
 
     @PostMapping("/send-forgot-password-otp")
     @Operation(summary = "Send OTP for password reset",

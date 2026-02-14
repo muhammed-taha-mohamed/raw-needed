@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @AllArgsConstructor
@@ -24,4 +25,8 @@ public class Category {
     private boolean active = true;
 
     private List<CategoryExtraField> extraFields;
+
+    private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
 }

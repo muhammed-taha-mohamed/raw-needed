@@ -6,6 +6,8 @@ package com.rawneeded.jwt;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rawneeded.dto.ResponsePayload;
+import com.rawneeded.model.UserSession;
+import com.rawneeded.repository.UserSessionRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -17,6 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 @Component
@@ -36,6 +39,7 @@ public class AuthorizationFilter extends OncePerRequestFilter {
             "dummy"
     );
     private final JwtTokenProvider jwtTokenUtil;
+    private final UserSessionRepository userSessionRepository;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -48,6 +52,15 @@ public class AuthorizationFilter extends OncePerRequestFilter {
                 if (token == null || !jwtTokenUtil.validateToken(token)) {
                     throwError(response);
                     return;
+                }
+                String userId = jwtTokenUtil.getIdFromToken(token);
+                String sessionId = jwtTokenUtil.getSessionIdFromToken(token);
+                Optional<UserSession> dbSession = userSessionRepository.findByUserId(userId);
+                if (dbSession.isPresent()) {
+                    if (sessionId == null || !sessionId.equals(dbSession.get().getCurrentSessionId())) {
+                        throwError(response);
+                        return;
+                    }
                 }
             }
 

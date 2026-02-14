@@ -11,4 +11,6 @@ import lombok.NoArgsConstructor;
 public class LoginDTO {
     private String email;
     private String password;
+    /** When true, replace existing session with new login (user chose "Login here") */
+    private Boolean forceReplaceSession;
 }

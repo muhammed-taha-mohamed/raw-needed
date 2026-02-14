@@ -4,6 +4,7 @@ import com.rawneeded.dto.ResponsePayload;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.error.exceptions.AbstractUnauthorizedException;
 import com.rawneeded.error.exceptions.AccountInactiveException;
+import com.rawneeded.error.exceptions.ExistingSessionException;
 import com.rawneeded.error.exceptions.NoSearchesQuotaException;
 import com.rawneeded.error.exceptions.PlanLimitExceededException;
 import lombok.extern.slf4j.Slf4j;
@@ -71,6 +72,18 @@ public class ControllerAdvice {
                         .error(Map.of(
                                 "errorMessage", e.getMessage(),
                                 "errorCode", NoSearchesQuotaException.ERROR_CODE))
+                        .build()
+        );
+    }
+
+    @ExceptionHandler({ExistingSessionException.class})
+    public ResponseEntity<ResponsePayload> handleExistingSessionException(ExistingSessionException e) {
+        log.warn("Existing session for user: {}", e.getMessage());
+        return ResponseEntity.status(513).body(
+                ResponsePayload.builder()
+                        .error(Map.of(
+                                "errorMessage", e.getMessage(),
+                                "errorCode", ExistingSessionException.ERROR_CODE))
                         .build()
         );
     }

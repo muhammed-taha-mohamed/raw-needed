@@ -196,7 +196,7 @@ public class ProductServiceImpl implements IProductService {
             }
 
             if (filterDTO.getOrigin() != null && !filterDTO.getOrigin().isEmpty()) {
-                criteriaList.add(Criteria.where("origin").regex(filterDTO.getOrigin(), "i"));
+                criteriaList.add(Criteria.where("origin").is(filterDTO.getOrigin()));
             }
 
             if (filterDTO.getSupplierId() != null && !filterDTO.getSupplierId().isEmpty()) {

@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import com.rawneeded.model.CategoryExtraField;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @AllArgsConstructor
@@ -17,5 +18,7 @@ public class CategoryResponseDto {
     private String name;
     private String arabicName;
     private List<CategoryExtraField> extraFields;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }
 

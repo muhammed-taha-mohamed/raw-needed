@@ -17,6 +17,7 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -40,6 +41,9 @@ public class CategoryServiceImpl implements ICategoryService {
         }
 
         Category category = categoryMapper.toEntity(dto);
+        LocalDateTime now = LocalDateTime.now();
+        category.setCreatedAt(now);
+        category.setUpdatedAt(now);
         return categoryMapper.toResponseDto(categoryRepository.save(category));
     }
 
@@ -49,6 +53,7 @@ public class CategoryServiceImpl implements ICategoryService {
                 .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("CATEGORY_NOT_FOUND")));
 
         categoryMapper.update(category, dto);
+        category.setUpdatedAt(LocalDateTime.now());
         return categoryMapper.toResponseDto(categoryRepository.save(category));
     }
 

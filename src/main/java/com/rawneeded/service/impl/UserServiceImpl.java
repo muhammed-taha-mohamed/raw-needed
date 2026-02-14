@@ -11,13 +11,16 @@ import com.rawneeded.dto.user.UserResponseDto;
 import com.rawneeded.enumeration.AccountStatus;
 import com.rawneeded.enumeration.Role;
 import com.rawneeded.error.exceptions.AbstractException;
+import com.rawneeded.error.exceptions.ExistingSessionException;
 import com.rawneeded.jwt.JwtTokenProvider;
 import com.rawneeded.mapper.UserMapper;
 import com.rawneeded.model.Category;
 import com.rawneeded.model.SubCategory;
 import com.rawneeded.model.User;
+import com.rawneeded.model.UserSession;
 import com.rawneeded.model.UserSubscription;
 import com.rawneeded.repository.CategoryRepository;
+import com.rawneeded.repository.UserSessionRepository;
 import com.rawneeded.repository.SubCategoryRepository;
 import com.rawneeded.repository.UserRepository;
 import com.rawneeded.service.ICartService;
@@ -44,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.HashMap;
+import java.util.UUID;
 
 import static com.rawneeded.enumeration.TemplateName.FORGET_PASSWORD_OTP;
 import static com.rawneeded.enumeration.TemplateName.WELCOME_TEMPLATE;
@@ -54,6 +58,7 @@ import static com.rawneeded.enumeration.TemplateName.WELCOME_TEMPLATE;
 public class UserServiceImpl implements IUserService {
 
     private final UserRepository userRepository;
+    private final UserSessionRepository userSessionRepository;
     private final MongoTemplate mongoTemplate;
     private final CategoryRepository categoryRepository;
     private final SubCategoryRepository subCategoryRepository;
@@ -141,6 +146,26 @@ public class UserServiceImpl implements IUserService {
             throw new AbstractException(messagesUtil.getMessage("ACCOUNT_INACTIVE"));
         }
 
+        // Single session per user: check existing session
+        Optional<UserSession> existingSession = userSessionRepository.findByUserId(user.getId());
+        boolean forceReplace = Boolean.TRUE.equals(dto.getForceReplaceSession());
+
+        if (existingSession.isPresent() && !forceReplace) {
+            throw new ExistingSessionException(messagesUtil.getMessage("EXISTING_SESSION"));
+        }
+
+        String newSessionId = UUID.randomUUID().toString();
+        UserSession userSession = existingSession
+                .map(s -> {
+                    s.setCurrentSessionId(newSessionId);
+                    return s;
+                })
+                .orElse(UserSession.builder()
+                        .userId(user.getId())
+                        .currentSessionId(newSessionId)
+                        .build());
+        userSessionRepository.save(userSession);
+
         String token = tokenProvider.generateToken(
                 GenerateTokenDto.builder()
                         .id(user.getId())
@@ -149,6 +174,7 @@ public class UserServiceImpl implements IUserService {
                         .email(user.getEmail())
                         .role(user.getRole())
                         .phoneNumber(user.getPhoneNumber())
+                        .sessionId(newSessionId)
                         .build());
 
         UserResponseDto userInfo = userMapper.toResponseDto(user);
@@ -157,6 +183,18 @@ public class UserServiceImpl implements IUserService {
                 .token(token)
                 .userInfo(userInfo)
                 .build();
+    }
+
+    @Override
+    public void logout() {
+        String token = messagesUtil.getAuthToken();
+        if (token == null || token.isBlank()) return;
+        try {
+            String userId = tokenProvider.getIdFromToken(token);
+            if (userId != null) userSessionRepository.deleteByUserId(userId);
+        } catch (Exception e) {
+            log.debug("Logout: could not invalidate session (e.g. expired token): {}", e.getMessage());
+        }
     }
 
     @Override

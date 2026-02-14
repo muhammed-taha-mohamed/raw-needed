@@ -21,6 +21,7 @@ public interface IUserService {
     /* =========== AUTH =========== */
     UserResponseDto register(CreateUserDto dto);
     LoginResponseDTO login(LoginDTO loginDTO);
+    void logout();
     void sendResetPasswordOTP(ForgotPasswordRequestDto requestDto);
     Boolean updatePasswordByOTP(ForgetPasswordDTO dto);
 

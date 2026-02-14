@@ -17,5 +17,5 @@ public class GenerateTokenDto {
     private String email;
     private Role role;
     private String phoneNumber;
-
+    private String sessionId;
 }
