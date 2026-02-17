@@ -180,6 +180,13 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
             SubscriptionPlan plan = subscriptionPlanRepository.findById(requestDto.getPlanId())
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_SUB_PLAN_NOT_FOUND")));
 
+            if (plan.isFree()) {
+                boolean alreadyUsed = userSubscriptionRepository.existsByUserIdAndPlanId(userId, plan.getId());
+                if (alreadyUsed) {
+                    throw new AbstractException("You have already used the free plan");
+                }
+            }
+
             // Check if user already has a pending subscription
             Optional<UserSubscription> existingSubscription = userSubscriptionRepository
                     .findByUserIdAndStatus(userId, PENDING);
@@ -687,7 +694,6 @@ public class UserSubscriptionServiceImpl implements IUserSubscriptionService {
     }
 
 }
-
 
 
 

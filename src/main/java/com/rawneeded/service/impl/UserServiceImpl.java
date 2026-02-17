@@ -2,6 +2,8 @@ package com.rawneeded.service.impl;
 
 import com.rawneeded.dto.MailDto;
 import com.rawneeded.dto.auth.*;
+import com.rawneeded.dto.admin.CreateAdminDto;
+import com.rawneeded.dto.admin.UpdateAdminDto;
 import com.rawneeded.dto.staff.CreateStaffDto;
 import com.rawneeded.dto.user.CreateUserDto;
 import com.rawneeded.dto.user.SearchOperationsSummaryDto;
@@ -76,6 +78,9 @@ public class UserServiceImpl implements IUserService {
     public UserResponseDto register(CreateUserDto dto) {
         try {
             log.info("Start creating a user with params: {}", dto);
+            if (dto.getPassword() == null || !dto.getPassword().equals(dto.getConfirmPassword())) {
+                throw new AbstractException(messagesUtil.getMessage("PASSWORDS_MISMATCH"));
+            }
 
             User user = userMapper.toEntity(dto);
             user.setPassword(passwordEncoder.encode(dto.getPassword()));
@@ -254,6 +259,32 @@ public class UserServiceImpl implements IUserService {
             throw e;
         } catch (Exception e) {
             log.error("Error occurred while updating password by OTP for email {}: {}", dto.getEmail(), e.getMessage());
+            throw new AbstractException(e.getMessage());
+        }
+    }
+
+    @Override
+    public Boolean changePassword(ChangePasswordDTO dto) {
+        try {
+            String token = messagesUtil.getAuthToken();
+            String userId = tokenProvider.getIdFromToken(token);
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_NOT_FOUND")));
+
+            if (!passwordEncoder.matches(dto.getOldPassword(), user.getPassword())) {
+                throw new AbstractException(messagesUtil.getMessage("OLD_PASSWORD_INCORRECT"));
+            }
+            if (dto.getNewPassword() == null || !dto.getNewPassword().equals(dto.getConfirmNewPassword())) {
+                throw new AbstractException(messagesUtil.getMessage("PASSWORDS_MISMATCH"));
+            }
+
+            user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+            userRepository.save(user);
+            return true;
+        } catch (AbstractException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to change password: {}", e.getMessage());
             throw new AbstractException(e.getMessage());
         }
     }
@@ -531,6 +562,10 @@ public class UserServiceImpl implements IUserService {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_NOT_FOUND")));
 
+            if (user.getRole() == Role.SUPER_ADMIN) {
+                throw new AbstractException(messagesUtil.getMessage("UNAUTHORIZED"));
+            }
+
             user.setAccountStatus(AccountStatus.INACTIVE);
             user = userRepository.save(user);
 
@@ -553,6 +588,140 @@ public class UserServiceImpl implements IUserService {
         }
     }
 
+    @Override
+    public UserResponseDto createAdminUser(CreateAdminDto dto) {
+        try {
+            assertSuperAdminAccess();
+            Role requestedRole = dto.getRole();
+            if (requestedRole != Role.ADMIN && requestedRole != Role.SUPER_ADMIN) {
+                throw new AbstractException(messagesUtil.getMessage("UNAUTHORIZED"));
+            }
+            if (dto.getPassword() == null || !dto.getPassword().equals(dto.getConfirmPassword())) {
+                throw new AbstractException(messagesUtil.getMessage("PASSWORDS_MISMATCH"));
+            }
+
+            User adminUser = User.builder()
+                    .name(dto.getName())
+                    .email(dto.getEmail())
+                    .phoneNumber(dto.getPhoneNumber())
+                    .password(passwordEncoder.encode(dto.getPassword()))
+                    .role(requestedRole)
+                    .accountStatus(AccountStatus.ACTIVE)
+                    .build();
+            adminUser = userRepository.save(adminUser);
+            return userMapper.toResponseDto(adminUser);
+        } catch (AbstractException e) {
+            throw e;
+        } catch (DuplicateKeyException e) {
+            throw new AbstractException(messagesUtil.getMessage("USER_ALREADY_EXISTS"));
+        } catch (Exception e) {
+            log.error("Failed to create admin user: {}", e.getMessage());
+            throw new AbstractException(e.getMessage());
+        }
+    }
+
+    @Override
+    public Page<UserResponseDto> getAdminUsers(Pageable pageable) {
+        try {
+            assertSuperAdminAccess();
+            return userRepository.findAllByRoleIn(List.of(Role.SUPER_ADMIN, Role.ADMIN), pageable)
+                    .map(user -> {
+                        if (user.getRole() == Role.SUPER_ADMIN && user.getAccountStatus() != AccountStatus.ACTIVE) {
+                            user.setAccountStatus(AccountStatus.ACTIVE);
+                            user = userRepository.save(user);
+                        }
+                        return userMapper.toResponseDto(user);
+                    });
+        } catch (AbstractException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to fetch admin users: {}", e.getMessage());
+            throw new AbstractException(messagesUtil.getMessage("FAILED_TO_FETCH_USERS"));
+        }
+    }
+
+    @Override
+    public UserResponseDto updateAdminUser(String userId, UpdateAdminDto dto) {
+        try {
+            assertSuperAdminAccess();
+
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_NOT_FOUND")));
+
+            if (user.getRole() != Role.ADMIN && user.getRole() != Role.SUPER_ADMIN) {
+                throw new AbstractException(messagesUtil.getMessage("UNAUTHORIZED"));
+            }
+
+            Role requestedRole = dto.getRole();
+            if (requestedRole != Role.ADMIN && requestedRole != Role.SUPER_ADMIN) {
+                throw new AbstractException(messagesUtil.getMessage("UNAUTHORIZED"));
+            }
+
+            user.setName(dto.getName());
+            user.setEmail(dto.getEmail());
+            user.setPhoneNumber(dto.getPhoneNumber());
+            user.setRole(requestedRole);
+
+            if (user.getRole() == Role.SUPER_ADMIN) {
+                user.setAccountStatus(AccountStatus.ACTIVE);
+            }
+
+            if (dto.getPassword() != null && !dto.getPassword().isBlank()) {
+                if (!dto.getPassword().equals(dto.getConfirmPassword())) {
+                    throw new AbstractException(messagesUtil.getMessage("PASSWORDS_MISMATCH"));
+                }
+                user.setPassword(passwordEncoder.encode(dto.getPassword()));
+            }
+
+            user = userRepository.save(user);
+            return userMapper.toResponseDto(user);
+        } catch (AbstractException e) {
+            throw e;
+        } catch (DuplicateKeyException e) {
+            throw new AbstractException(messagesUtil.getMessage("USER_ALREADY_EXISTS"));
+        } catch (Exception e) {
+            log.error("Failed to update admin user: {}", e.getMessage());
+            throw new AbstractException(e.getMessage());
+        }
+    }
+
+    @Override
+    public void deleteAdminUser(String userId) {
+        try {
+            assertSuperAdminAccess();
+            String token = messagesUtil.getAuthToken();
+            String currentUserId = tokenProvider.getIdFromToken(token);
+            if (currentUserId != null && currentUserId.equals(userId)) {
+                throw new AbstractException(messagesUtil.getMessage("UNAUTHORIZED"));
+            }
+
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_NOT_FOUND")));
+
+            if (user.getRole() == Role.SUPER_ADMIN) {
+                throw new AbstractException(messagesUtil.getMessage("UNAUTHORIZED"));
+            }
+            if (user.getRole() != Role.ADMIN) {
+                throw new AbstractException(messagesUtil.getMessage("UNAUTHORIZED"));
+            }
+
+            userRepository.deleteById(userId);
+        } catch (AbstractException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to delete admin user: {}", e.getMessage());
+            throw new AbstractException(e.getMessage());
+        }
+    }
+
+    private void assertSuperAdminAccess() {
+        String token = messagesUtil.getAuthToken();
+        Role role = tokenProvider.getRoleFromToken(token);
+        if (role != Role.SUPER_ADMIN) {
+            throw new AbstractException(messagesUtil.getMessage("UNAUTHORIZED"));
+        }
+    }
+
     @PostConstruct
     public void initSuperAdmin() {
         if (userRepository.existsByRole(Role.SUPER_ADMIN)) {
@@ -565,6 +734,7 @@ public class UserServiceImpl implements IUserService {
                 .email("admin@rawneeded.com")
                 .password(passwordEncoder.encode("admin@123"))
                 .role(Role.SUPER_ADMIN)
+                .accountStatus(AccountStatus.ACTIVE)
                 .build();
 
         userRepository.save(superAdmin);

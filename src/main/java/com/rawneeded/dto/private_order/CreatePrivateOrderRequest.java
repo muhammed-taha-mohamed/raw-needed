@@ -1,6 +1,6 @@
-package com.rawneeded.dto.post;
+package com.rawneeded.dto.private_order;
 
-import com.rawneeded.enumeration.PostType;
+import com.rawneeded.enumeration.PrivateOrderTargetType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -13,19 +13,19 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Data
 @Builder
-public class CreatePostRequest {
+public class CreatePrivateOrderRequest {
     @NotBlank(message = "Material name is required")
     private String materialName;
-    
+
     private String image;
-    
+
     @NotNull(message = "Quantity is required")
     @Positive(message = "Quantity must be positive")
     private Float quantity;
-    
+
     @NotBlank(message = "Unit is required")
     private String unit;
-    
-    @NotNull(message = "Post type is required")
-    private PostType postType;
+
+    @NotNull(message = "Target type is required")
+    private PrivateOrderTargetType targetType;
 }

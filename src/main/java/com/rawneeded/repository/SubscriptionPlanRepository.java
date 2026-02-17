@@ -13,4 +13,7 @@ public interface SubscriptionPlanRepository extends MongoRepository<Subscription
     boolean existsByNameIgnoreCaseAndIdNot(String name, String id);
     List<SubscriptionPlan> findByPlanType(PlanType planType);
     List<SubscriptionPlan> findByPlanTypeAndActiveTrue(PlanType planType);
+    boolean existsByPlanTypeAndFreeTrue(PlanType planType);
+    List<SubscriptionPlan> findByPlanTypeAndFreeTrue(PlanType planType);
+    List<SubscriptionPlan> findByFreeTrue();
 }

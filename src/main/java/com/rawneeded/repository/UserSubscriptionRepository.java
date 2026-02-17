@@ -14,6 +14,7 @@ import java.util.Optional;
 @Repository
 public interface UserSubscriptionRepository extends MongoRepository<UserSubscription, String> {
     Optional<UserSubscription> findFirstByUserId(String userId);
+    List<UserSubscription> findByUserId(String userId);
     List<UserSubscription> findByPlanId(String planId);
     Optional<UserSubscription> findByUserIdAndStatus(String userId, UserSubscriptionStatus status);
     Page<UserSubscription> findByStatus(Pageable pageable, UserSubscriptionStatus status);
@@ -27,4 +28,6 @@ public interface UserSubscriptionRepository extends MongoRepository<UserSubscrip
     long countBySubmissionDateAfter(LocalDateTime date);
 
     Page<UserSubscription> findAllByOrderBySubmissionDateDesc(Pageable pageable);
+
+    boolean existsByUserIdAndPlanId(String userId, String planId);
 }

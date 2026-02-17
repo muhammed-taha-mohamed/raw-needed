@@ -83,6 +83,14 @@ public class PlanServiceImpl implements IPlanService {
             if (requestDto.getExclusive() != null) {
                 plan.setExclusive(requestDto.getExclusive());
             }
+            if (requestDto.getFree() != null && requestDto.getFree()) {
+                boolean existsFreeForType = subscriptionPlanRepository.existsByPlanTypeAndFreeTrue(requestDto.getPlanType());
+                if (existsFreeForType) {
+                    throw new AbstractException("A free plan already exists for this type");
+                }
+                plan.setFree(true);
+                plan.setPricePerUser(0.0);
+            }
 
             plan = subscriptionPlanRepository.save(plan);
             log.info("Subscription plan created successfully with id: {}", plan.getId());
@@ -114,6 +122,20 @@ public class PlanServiceImpl implements IPlanService {
             }
 
             planMapper.update(plan, requestDto);
+            if (requestDto.getFree() != null) {
+                if (requestDto.getFree()) {
+                    if (!plan.isFree()) {
+                        boolean existsFreeForType = subscriptionPlanRepository.existsByPlanTypeAndFreeTrue(plan.getPlanType());
+                        if (existsFreeForType) {
+                            throw new AbstractException("A free plan already exists for this type");
+                        }
+                    }
+                    plan.setFree(true);
+                    plan.setPricePerUser(0.0);
+                } else {
+                    plan.setFree(false);
+                }
+            }
 
             plan = subscriptionPlanRepository.save(plan);
             log.info("Subscription plan updated successfully with id: {}", plan.getId());
@@ -133,6 +155,9 @@ public class PlanServiceImpl implements IPlanService {
             log.info("Deleting subscription plan with id: {}", planId);
             SubscriptionPlan plan = subscriptionPlanRepository.findById(planId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("PLAN_NOT_FOUND")));
+            if (plan.isFree()) {
+                throw new AbstractException("Cannot delete a free plan");
+            }
             subscriptionPlanRepository.delete(plan);
         } catch (AbstractException e) {
             throw e;

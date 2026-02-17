@@ -1,34 +1,30 @@
-package com.rawneeded.dto.user;
-
+package com.rawneeded.dto.admin;
 
 import com.rawneeded.enumeration.Role;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
-@Builder
-public class CreateUserDto {
-
+public class CreateAdminDto {
+    @NotEmpty(message = "Name is required")
     private String name;
-    private Role role;
+
+    @Email(message = "Invalid email")
+    @NotEmpty(message = "Email is required")
+    private String email;
+
     @NotEmpty(message = "Password is required")
     private String password;
+
     @NotEmpty(message = "Confirm password is required")
     private String confirmPassword;
-    private String email;
-    private String phoneNumber;
-    private String categoryId;
-    private List<String> subCategoryIds;
-    private String profileImage;
 
-    private String organizationName;
-    private String organizationCRN;
-    private String organizationCRNImage;
+    private String phoneNumber;
+
+    private Role role;
 }

@@ -11,6 +11,7 @@ public enum Role {
     // Admin roles
 
     SUPER_ADMIN,
+    ADMIN,
 
     // Customer roles
     CUSTOMER_OWNER,

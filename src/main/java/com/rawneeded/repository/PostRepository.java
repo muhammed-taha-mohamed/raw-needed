@@ -13,6 +13,7 @@ import java.util.List;
 @Repository
 public interface PostRepository extends MongoRepository<Post, String> {
     Page<Post> findByPostTypeAndActiveTrueOrderByCreatedAtDesc(PostType postType, Pageable pageable);
+    Page<Post> findByPostTypeAndActiveTrueAndCreatedByIdNotOrderByCreatedAtDesc(PostType postType, String createdById, Pageable pageable);
     List<Post> findByCreatedById(String createdById);
     Page<Post> findByCreatedByIdOrderByCreatedAtDesc(String createdById, Pageable pageable);
 

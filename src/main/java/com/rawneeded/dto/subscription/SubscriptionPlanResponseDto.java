@@ -32,6 +32,7 @@ public class SubscriptionPlanResponseDto {
     private ProductSearchesConfig productSearchesConfig;
 
     
+    private boolean free;
     private boolean exclusive;
     private boolean active;
 }

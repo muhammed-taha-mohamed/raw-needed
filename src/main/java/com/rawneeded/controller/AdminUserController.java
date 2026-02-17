@@ -1,6 +1,8 @@
 package com.rawneeded.controller;
 
 import com.rawneeded.dto.ResponsePayload;
+import com.rawneeded.dto.admin.CreateAdminDto;
+import com.rawneeded.dto.admin.UpdateAdminDto;
 import com.rawneeded.dto.user.UserResponseDto;
 import com.rawneeded.service.IUserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -64,6 +66,68 @@ public class AdminUserController {
                         "success", true,
                         "data", user,
                         "message", "User deactivated successfully"))
+                .build());
+    }
+
+    @GetMapping("/admin-accounts")
+    @Operation(
+            summary = "Get admin users",
+            description = "Get paginated list of ADMIN and SUPER_ADMIN users (SUPER_ADMIN only)"
+    )
+    public ResponseEntity<ResponsePayload> getAdminUsers(Pageable pageable) {
+        Page<UserResponseDto> users = userService.getAdminUsers(pageable);
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of(
+                        "success", true,
+                        "data", users))
+                .build());
+    }
+
+    @PostMapping("/admin-accounts")
+    @Operation(
+            summary = "Create admin user",
+            description = "Create ADMIN or SUPER_ADMIN user (SUPER_ADMIN only)"
+    )
+    public ResponseEntity<ResponsePayload> createAdminUser(@RequestBody CreateAdminDto dto) {
+        UserResponseDto user = userService.createAdminUser(dto);
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of(
+                        "success", true,
+                        "data", user,
+                        "message", "Admin user created successfully"))
+                .build());
+    }
+
+    @PutMapping("/admin-accounts/{userId}")
+    @Operation(
+            summary = "Update admin user",
+            description = "Update ADMIN or SUPER_ADMIN user (SUPER_ADMIN only)"
+    )
+    public ResponseEntity<ResponsePayload> updateAdminUser(@PathVariable String userId, @RequestBody UpdateAdminDto dto) {
+        UserResponseDto user = userService.updateAdminUser(userId, dto);
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of(
+                        "success", true,
+                        "data", user,
+                        "message", "Admin user updated successfully"))
+                .build());
+    }
+
+    @DeleteMapping("/admin-accounts/{userId}")
+    @Operation(
+            summary = "Delete admin user",
+            description = "Delete ADMIN user (SUPER_ADMIN only)"
+    )
+    public ResponseEntity<ResponsePayload> deleteAdminUser(@PathVariable String userId) {
+        userService.deleteAdminUser(userId);
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of(
+                        "success", true,
+                        "message", "Admin user deleted successfully"))
                 .build());
     }
 }

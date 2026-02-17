@@ -4,6 +4,7 @@ import com.rawneeded.dto.ResponsePayload;
 import com.rawneeded.dto.auth.ForgetPasswordDTO;
 import com.rawneeded.dto.auth.ForgotPasswordRequestDto;
 import com.rawneeded.dto.auth.LoginDTO;
+import com.rawneeded.dto.auth.ChangePasswordDTO;
 import com.rawneeded.dto.user.CreateUserDto;
 import com.rawneeded.service.IUserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -84,6 +85,19 @@ public class AuthController {
                 .content(Map.of(
                         "success", isValid,
                         "message", isValid ? "OTP verified successfully" : "Invalid OTP"))
+                .build());
+    }
+
+    @PostMapping("/change-password")
+    @Operation(summary = "Change password",
+            description = "Change password using old password and confirmation")
+    public ResponseEntity<ResponsePayload> changePassword(@RequestBody ChangePasswordDTO dto) {
+        Boolean updated = userService.changePassword(dto);
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of(
+                        "success", updated,
+                        "message", updated ? "Password changed successfully" : "Password change failed"))
                 .build());
     }
 

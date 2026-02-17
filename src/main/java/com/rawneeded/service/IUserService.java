@@ -4,6 +4,9 @@ import com.rawneeded.dto.auth.ForgetPasswordDTO;
 import com.rawneeded.dto.auth.ForgotPasswordRequestDto;
 import com.rawneeded.dto.auth.LoginDTO;
 import com.rawneeded.dto.auth.LoginResponseDTO;
+import com.rawneeded.dto.auth.ChangePasswordDTO;
+import com.rawneeded.dto.admin.CreateAdminDto;
+import com.rawneeded.dto.admin.UpdateAdminDto;
 import com.rawneeded.dto.staff.CreateStaffDto;
 import com.rawneeded.dto.user.CreateUserDto;
 import com.rawneeded.dto.user.SearchOperationsSummaryDto;
@@ -24,6 +27,7 @@ public interface IUserService {
     void logout();
     void sendResetPasswordOTP(ForgotPasswordRequestDto requestDto);
     Boolean updatePasswordByOTP(ForgetPasswordDTO dto);
+    Boolean changePassword(ChangePasswordDTO dto);
 
 
 
@@ -45,4 +49,8 @@ public interface IUserService {
     Page<UserResponseDto> getAllUsers(Pageable pageable);
     UserResponseDto activateUser(String userId);
     UserResponseDto deactivateUser(String userId);
+    UserResponseDto createAdminUser(CreateAdminDto dto);
+    UserResponseDto updateAdminUser(String userId, UpdateAdminDto dto);
+    void deleteAdminUser(String userId);
+    Page<UserResponseDto> getAdminUsers(Pageable pageable);
 }

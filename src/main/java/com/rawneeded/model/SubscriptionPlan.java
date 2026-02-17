@@ -31,6 +31,7 @@ public class SubscriptionPlan {
     private ProductSearchesConfig productSearchesConfig;
 
     
+    private boolean free = false;
     private boolean exclusive = false;
     private boolean active = true;
 }

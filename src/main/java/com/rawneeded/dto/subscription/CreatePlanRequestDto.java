@@ -24,7 +24,7 @@ public class CreatePlanRequestDto {
     private String name;
     
     @NotNull(message = "Price per user is required")
-    @Positive(message = "Price per user must be positive")
+    @jakarta.validation.constraints.PositiveOrZero(message = "Price per user must be zero or positive")
     private Double pricePerUser;
     
     private String description;
@@ -43,5 +43,6 @@ public class CreatePlanRequestDto {
     // For Customer plans: Product searches configuration
     private ProductSearchesConfig productSearchesConfig;
 
+    private Boolean free;
     private Boolean exclusive;
 }

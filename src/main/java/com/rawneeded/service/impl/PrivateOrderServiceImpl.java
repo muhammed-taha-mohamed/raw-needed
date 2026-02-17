@@ -1,12 +1,13 @@
 package com.rawneeded.service.impl;
 
 import com.rawneeded.dto.post.CreateOfferRequest;
-import com.rawneeded.dto.post.CreatePostRequest;
+import com.rawneeded.dto.private_order.CreatePrivateOrderRequest;
 import com.rawneeded.dto.post.OfferResponseDto;
-import com.rawneeded.dto.post.PostResponseDto;
+import com.rawneeded.dto.private_order.PrivateOrderResponseDto;
 import com.rawneeded.dto.post.RespondToOfferRequest;
 import com.rawneeded.enumeration.PostStatus;
 import com.rawneeded.enumeration.PostType;
+import com.rawneeded.enumeration.PrivateOrderTargetType;
 import com.rawneeded.enumeration.Role;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.jwt.JwtTokenProvider;
@@ -16,7 +17,7 @@ import com.rawneeded.model.User;
 import com.rawneeded.repository.OfferRepository;
 import com.rawneeded.repository.PostRepository;
 import com.rawneeded.repository.UserRepository;
-import com.rawneeded.service.IPostService;
+import com.rawneeded.service.IPrivateOrderService;
 import com.rawneeded.util.MessagesUtil;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +32,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @AllArgsConstructor
-public class PostServiceImpl implements IPostService {
+public class PrivateOrderServiceImpl implements IPrivateOrderService {
 
     private final PostRepository postRepository;
     private final OfferRepository offerRepository;
@@ -40,9 +41,9 @@ public class PostServiceImpl implements IPostService {
     private final MessagesUtil messagesUtil;
 
     @Override
-    public PostResponseDto createPost(CreatePostRequest request) {
+    public PrivateOrderResponseDto createPrivateOrder(CreatePrivateOrderRequest request) {
         try {
-            log.info("Creating new post: {}", request.getMaterialName());
+            log.info("Creating new private order: {}", request.getMaterialName());
 
             String token = messagesUtil.getAuthToken();
             String userId = tokenProvider.getOwnerIdFromToken(token);
@@ -55,7 +56,7 @@ public class PostServiceImpl implements IPostService {
                     .image(request.getImage())
                     .quantity(request.getQuantity())
                     .unit(request.getUnit())
-                    .postType(request.getPostType())
+                    .postType(mapTargetType(request.getTargetType()))
                     .createdBy(creator)
                     .createdById(creator.getId())
                     .createdByName(creator.getName())
@@ -67,69 +68,59 @@ public class PostServiceImpl implements IPostService {
                     .build();
 
             post = postRepository.save(post);
-            log.info("Post created successfully with id: {}", post.getId());
+            log.info("Private order created successfully with id: {}", post.getId());
 
-            return toPostResponseDto(post);
+            return toPrivateOrderResponseDto(post);
         } catch (AbstractException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Error creating post: {}", e.getMessage(), e);
+            log.error("Error creating private order: {}", e.getMessage(), e);
             throw new AbstractException(messagesUtil.getMessage("POST_CREATE_FAIL"));
         }
     }
 
     @Override
-    public Page<PostResponseDto> getAllPosts(Pageable pageable) {
+    public Page<PrivateOrderResponseDto> getAllPrivateOrders(Pageable pageable) {
         try {
-            log.info("Fetching all posts");
+            log.info("Fetching all private orders");
             String token = messagesUtil.getAuthToken();
             Role role = tokenProvider.getRoleFromToken(token);
-            PostType type = (role==Role.CUSTOMER_OWNER || role==Role.CUSTOMER_STAFF) ? PostType.CUSTOMERS
+            String ownerId = tokenProvider.getOwnerIdFromToken(token);
+
+            PostType type = (role == Role.CUSTOMER_OWNER || role == Role.CUSTOMER_STAFF)
+                    ? PostType.CUSTOMERS
                     : PostType.SUPPLIERS;
-            Page<Post> posts = postRepository.findByPostTypeAndActiveTrueOrderByCreatedAtDesc(type,pageable);
-            return posts.map(this::toPostResponseDto);
-        } catch (Exception e) {
-            log.error("Error fetching all posts: {}", e.getMessage(), e);
-            throw new AbstractException(messagesUtil.getMessage("POST_FETCH_ALL_FAIL"));
-        }
-    }
 
-
-    @Override
-    public List<PostResponseDto> myPosts() {
-        try {
-            log.info("Fetching all posts by current user");
-            String token = messagesUtil.getAuthToken();
-            String userId = tokenProvider.getOwnerIdFromToken(token);
-            List<Post> posts = postRepository.findByCreatedById(userId);
-            return posts.stream().map(this::toPostResponseDto).toList();
+            // Backend-level exclusion of current user's own private orders from "All"
+            Page<Post> posts = postRepository.findByPostTypeAndActiveTrueAndCreatedByIdNotOrderByCreatedAtDesc(type, ownerId, pageable);
+            return posts.map(this::toPrivateOrderResponseDto);
         } catch (Exception e) {
-            log.error("Error fetching all posts: {}", e.getMessage(), e);
+            log.error("Error fetching all private orders: {}", e.getMessage(), e);
             throw new AbstractException(messagesUtil.getMessage("POST_FETCH_ALL_FAIL"));
         }
     }
 
     @Override
-    public PostResponseDto getPostById(String postId) {
+    public PrivateOrderResponseDto getPrivateOrderById(String privateOrderId) {
         try {
-            log.info("Fetching post by id: {}", postId);
-            Post post = postRepository.findById(postId)
+            log.info("Fetching private order by id: {}", privateOrderId);
+            Post post = postRepository.findById(privateOrderId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("POST_NOT_FOUND")));
-            return toPostResponseDto(post);
+            return toPrivateOrderResponseDto(post);
         } catch (AbstractException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Error fetching post: {}", e.getMessage(), e);
+            log.error("Error fetching private order: {}", e.getMessage(), e);
             throw new AbstractException(messagesUtil.getMessage("POST_FETCH_ONE_FAIL"));
         }
     }
 
     @Override
-    public OfferResponseDto createOffer(String postId, CreateOfferRequest request) {
+    public OfferResponseDto createOffer(String privateOrderId, CreateOfferRequest request) {
         try {
-            log.info("Creating offer for post: {}", postId);
+            log.info("Creating offer for private order: {}", privateOrderId);
 
-            Post post = postRepository.findById(postId)
+            Post post = postRepository.findById(privateOrderId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("POST_NOT_FOUND")));
 
             if (!post.isActive()) {
@@ -146,17 +137,16 @@ public class PostServiceImpl implements IPostService {
             User offerer = userRepository.findById(userId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_NOT_FOUND")));
 
-            // Check if user already made an offer for this post
-            List<Offer> existingOffers = offerRepository.findByPostId(postId);
+            List<Offer> existingOffers = offerRepository.findByPostId(privateOrderId);
             boolean alreadyOffered = existingOffers.stream()
                     .anyMatch(offer -> offer.getOfferedById().equals(userId));
-            
+
             if (alreadyOffered) {
                 throw new AbstractException(messagesUtil.getMessage("OFFER_ALREADY_EXISTS"));
             }
 
             Offer offer = Offer.builder()
-                    .postId(postId)
+                    .postId(privateOrderId)
                     .offeredBy(offerer)
                     .offeredById(offerer.getId())
                     .offeredByName(offerer.getName())
@@ -171,8 +161,6 @@ public class PostServiceImpl implements IPostService {
                     .build();
 
             offer = offerRepository.save(offer);
-            log.info("Offer created successfully with id: {}", offer.getId());
-
             return toOfferResponseDto(offer);
         } catch (AbstractException e) {
             throw e;
@@ -183,17 +171,16 @@ public class PostServiceImpl implements IPostService {
     }
 
     @Override
-    public OfferResponseDto respondToOffer(String postId, String offerId, RespondToOfferRequest request) {
+    public OfferResponseDto respondToOffer(String privateOrderId, String offerId, RespondToOfferRequest request) {
         try {
-            log.info("Responding to offer: {} for post: {}", offerId, postId);
+            log.info("Responding to offer: {} for private order: {}", offerId, privateOrderId);
 
-            Post post = postRepository.findById(postId)
+            Post post = postRepository.findById(privateOrderId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("POST_NOT_FOUND")));
 
             String token = messagesUtil.getAuthToken();
             String userId = tokenProvider.getOwnerIdFromToken(token);
 
-            // Verify that the user is the post creator
             if (!post.getCreatedById().equals(userId)) {
                 throw new AbstractException(messagesUtil.getMessage("UNAUTHORIZED_POST_ACCESS"));
             }
@@ -201,7 +188,7 @@ public class PostServiceImpl implements IPostService {
             Offer offer = offerRepository.findById(offerId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("OFFER_NOT_FOUND")));
 
-            if (!offer.getPostId().equals(postId)) {
+            if (!offer.getPostId().equals(privateOrderId)) {
                 throw new AbstractException(messagesUtil.getMessage("OFFER_POST_MISMATCH"));
             }
 
@@ -214,8 +201,6 @@ public class PostServiceImpl implements IPostService {
             offer.setRespondedAt(LocalDateTime.now());
 
             offer = offerRepository.save(offer);
-            log.info("Offer response saved successfully");
-
             return toOfferResponseDto(offer);
         } catch (AbstractException e) {
             throw e;
@@ -226,17 +211,14 @@ public class PostServiceImpl implements IPostService {
     }
 
     @Override
-    public PostResponseDto closePost(String postId) {
+    public PrivateOrderResponseDto closePrivateOrder(String privateOrderId) {
         try {
-            log.info("Closing post: {}", postId);
-
             String token = messagesUtil.getAuthToken();
             String userId = tokenProvider.getOwnerIdFromToken(token);
 
-            Post post = postRepository.findById(postId)
+            Post post = postRepository.findById(privateOrderId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("POST_NOT_FOUND")));
 
-            // Verify that the user is the post creator
             if (!post.getCreatedById().equals(userId)) {
                 throw new AbstractException(messagesUtil.getMessage("UNAUTHORIZED_POST_ACCESS"));
             }
@@ -248,29 +230,24 @@ public class PostServiceImpl implements IPostService {
             post.setStatus(PostStatus.CLOSED);
             post.setUpdatedAt(LocalDateTime.now());
             post = postRepository.save(post);
-
-            log.info("Post closed successfully");
-            return toPostResponseDto(post);
+            return toPrivateOrderResponseDto(post);
         } catch (AbstractException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Error closing post: {}", e.getMessage(), e);
+            log.error("Error closing private order: {}", e.getMessage(), e);
             throw new AbstractException(messagesUtil.getMessage("POST_CLOSE_FAIL"));
         }
     }
 
     @Override
-    public PostResponseDto completePost(String postId) {
+    public PrivateOrderResponseDto completePrivateOrder(String privateOrderId) {
         try {
-            log.info("Completing post: {}", postId);
-
             String token = messagesUtil.getAuthToken();
             String userId = tokenProvider.getOwnerIdFromToken(token);
 
-            Post post = postRepository.findById(postId)
+            Post post = postRepository.findById(privateOrderId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("POST_NOT_FOUND")));
 
-            // Verify that the user is the post creator
             if (!post.getCreatedById().equals(userId)) {
                 throw new AbstractException(messagesUtil.getMessage("UNAUTHORIZED_POST_ACCESS"));
             }
@@ -282,29 +259,25 @@ public class PostServiceImpl implements IPostService {
             post.setStatus(PostStatus.COMPLETED);
             post.setUpdatedAt(LocalDateTime.now());
             post = postRepository.save(post);
-
-            log.info("Post completed successfully");
-            return toPostResponseDto(post);
+            return toPrivateOrderResponseDto(post);
         } catch (AbstractException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Error completing post: {}", e.getMessage(), e);
+            log.error("Error completing private order: {}", e.getMessage(), e);
             throw new AbstractException(messagesUtil.getMessage("POST_COMPLETE_FAIL"));
         }
     }
 
     @Override
-    public Page<PostResponseDto> getMyPosts(Pageable pageable) {
+    public Page<PrivateOrderResponseDto> getMyPrivateOrders(Pageable pageable) {
         try {
-            log.info("Fetching user's posts");
-
             String token = messagesUtil.getAuthToken();
             String userId = tokenProvider.getOwnerIdFromToken(token);
 
             Page<Post> posts = postRepository.findByCreatedByIdOrderByCreatedAtDesc(userId, pageable);
-            return posts.map(this::toPostResponseDto);
+            return posts.map(this::toPrivateOrderResponseDto);
         } catch (Exception e) {
-            log.error("Error fetching user's posts: {}", e.getMessage(), e);
+            log.error("Error fetching user's private orders: {}", e.getMessage(), e);
             throw new AbstractException(messagesUtil.getMessage("POST_FETCH_MY_POSTS_FAIL"));
         }
     }
@@ -312,12 +285,9 @@ public class PostServiceImpl implements IPostService {
     @Override
     public Page<OfferResponseDto> getMyOffers(Pageable pageable) {
         try {
-            log.info("Fetching user's offers");
-
             String token = messagesUtil.getAuthToken();
             String userId = tokenProvider.getOwnerIdFromToken(token);
-
-            Page<Offer> offers = offerRepository.findByOfferedByIdOrderByCreatedAtDesc(pageable,userId );
+            Page<Offer> offers = offerRepository.findByOfferedByIdOrderByCreatedAtDesc(pageable, userId);
             return offers.map(this::toOfferResponseDto);
         } catch (Exception e) {
             log.error("Error fetching user's offers: {}", e.getMessage(), e);
@@ -325,19 +295,37 @@ public class PostServiceImpl implements IPostService {
         }
     }
 
-    private PostResponseDto toPostResponseDto(Post post) {
+    private PostType mapTargetType(PrivateOrderTargetType targetType) {
+        if (targetType == null) return PostType.BOTH;
+        return switch (targetType) {
+            case SUPPLIERS -> PostType.SUPPLIERS;
+            case CUSTOMERS -> PostType.CUSTOMERS;
+            case BOTH -> PostType.BOTH;
+        };
+    }
+
+    private PrivateOrderTargetType mapTargetType(PostType postType) {
+        if (postType == null) return PrivateOrderTargetType.BOTH;
+        return switch (postType) {
+            case SUPPLIERS -> PrivateOrderTargetType.SUPPLIERS;
+            case CUSTOMERS -> PrivateOrderTargetType.CUSTOMERS;
+            case BOTH -> PrivateOrderTargetType.BOTH;
+        };
+    }
+
+    private PrivateOrderResponseDto toPrivateOrderResponseDto(Post post) {
         List<Offer> offers = offerRepository.findByPostIdOrderByCreatedAtDesc(post.getId());
         List<OfferResponseDto> offerDtos = offers.stream()
                 .map(this::toOfferResponseDto)
                 .collect(Collectors.toList());
 
-        return PostResponseDto.builder()
+        return PrivateOrderResponseDto.builder()
                 .id(post.getId())
                 .materialName(post.getMaterialName())
                 .image(post.getImage())
                 .quantity(post.getQuantity())
                 .unit(post.getUnit())
-                .postType(post.getPostType())
+                .targetType(mapTargetType(post.getPostType()))
                 .createdById(post.getCreatedById())
                 .createdByName(post.getCreatedByName())
                 .createdByOrganizationName(post.getCreatedByOrganizationName())

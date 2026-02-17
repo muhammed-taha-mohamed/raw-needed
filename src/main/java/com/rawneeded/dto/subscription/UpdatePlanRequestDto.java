@@ -20,7 +20,7 @@ import java.util.List;
 public class UpdatePlanRequestDto {
     private String name;
     
-    @Positive(message = "Price per user must be positive")
+    @jakarta.validation.constraints.PositiveOrZero(message = "Price per user must be zero or positive")
     private Double pricePerUser;
     
     private String description;
@@ -38,8 +38,9 @@ public class UpdatePlanRequestDto {
     private ProductSearchesConfig productSearchesConfig;
     
     // For Supplier plans: Base subscription price
-    @Positive(message = "Base subscription price must be positive")
+    @jakarta.validation.constraints.PositiveOrZero(message = "Base subscription price must be zero or positive")
     private Double baseSubscriptionPrice;
     
+    private Boolean free;
     private Boolean exclusive;
 }
