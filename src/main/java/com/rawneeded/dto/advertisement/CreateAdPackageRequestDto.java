@@ -7,7 +7,10 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import com.rawneeded.model.AdSpecialOffer;
+
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 @Builder
@@ -26,6 +29,8 @@ public class CreateAdPackageRequestDto {
     /** Extra price for featuring ad at top (EGP) */
     @Min(0)
     private BigDecimal featuredPrice;
+    /** Special offers based on number of ads (discounts) */
+    private List<AdSpecialOffer> specialOffers;
     private Boolean active;
     private Integer sortOrder;
 }

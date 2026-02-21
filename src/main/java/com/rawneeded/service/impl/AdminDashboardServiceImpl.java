@@ -1,5 +1,6 @@
 package com.rawneeded.service.impl;
 
+import com.rawneeded.dto.advertisement.AdvertisementResponseDto;
 import com.rawneeded.dto.dashboard.AdSubscriptionStatsDto;
 import com.rawneeded.dto.dashboard.DashboardStatsDto;
 import com.rawneeded.dto.dashboard.MonthlyOrderStats;
@@ -7,6 +8,9 @@ import com.rawneeded.dto.dashboard.PendingCountsDto;
 import com.rawneeded.dto.dashboard.SubscriptionSummaryDto;
 import com.rawneeded.dto.dashboard.UserStatsDto;
 import com.rawneeded.dto.subscription.UserSubscriptionResponseDto;
+import com.rawneeded.model.Advertisement;
+import com.rawneeded.repository.AdvertisementRepository;
+import com.rawneeded.repository.AdvertisementViewRepository;
 import com.rawneeded.enumeration.LineStatus;
 import com.rawneeded.enumeration.OrderStatus;
 import com.rawneeded.enumeration.Role;
@@ -24,6 +28,7 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.Month;
 import java.time.format.TextStyle;
@@ -44,6 +49,8 @@ public class AdminDashboardServiceImpl implements IAdminDashboardService {
     private final UserSubscriptionRepository userSubscriptionRepository;
     private final AdSubscriptionRepository adSubscriptionRepository;
     private final AddSearchesRequestRepository addSearchesRequestRepository;
+    private final AdvertisementRepository advertisementRepository;
+    private final AdvertisementViewRepository advertisementViewRepository;
     private final UserSubscriptionMapper userSubscriptionMapper;
     private final JwtTokenProvider tokenProvider;
     private final MessagesUtil messagesUtil;
@@ -292,5 +299,85 @@ public class AdminDashboardServiceImpl implements IAdminDashboardService {
             }
         }
         return result;
+    }
+
+    @Override
+    public List<AdvertisementResponseDto> getDashboardAdvertisements() {
+        try {
+            log.info("Fetching all active advertisements for dashboard (list, not paginated)");
+            LocalDateTime now = LocalDateTime.now();
+            
+            // Get all advertisements first
+            List<Advertisement> allAds = advertisementRepository.findAll();
+            log.debug("Total advertisements in DB: {}", allAds.size());
+            
+            // Get all active, not expired, and not hidden advertisements
+            List<Advertisement> advertisements = allAds.stream()
+                    .filter(ad -> {
+                        boolean isActive = ad.isActive();
+                        boolean isNotHidden = !ad.isHidden();
+                        boolean isNotExpired = ad.getEndDate() == null || ad.getEndDate().isAfter(now);
+                        
+                        if (!isActive) {
+                            log.debug("Ad {} filtered out: not active", ad.getId());
+                        }
+                        if (!isNotHidden) {
+                            log.debug("Ad {} filtered out: hidden", ad.getId());
+                        }
+                        if (!isNotExpired && ad.getEndDate() != null) {
+                            log.debug("Ad {} filtered out: expired (endDate: {}, now: {})", ad.getId(), ad.getEndDate(), now);
+                        }
+                        
+                        return isActive && isNotHidden && isNotExpired;
+                    })
+                    .sorted((a, b) -> {
+                        // Sort by featured first, then by createdAt desc
+                        if (a.isFeatured() != b.isFeatured()) {
+                            return b.isFeatured() ? 1 : -1;
+                        }
+                        if (a.getCreatedAt() != null && b.getCreatedAt() != null) {
+                            return b.getCreatedAt().compareTo(a.getCreatedAt());
+                        }
+                        return 0;
+                    })
+                    .collect(Collectors.toList());
+            
+            log.info("Found {} active advertisements for dashboard", advertisements.size());
+            
+            return advertisements.stream()
+                    .map(ad -> {
+                        Long remainingDays = null;
+                        if (ad.getEndDate() != null) {
+                            if (ad.getEndDate().isAfter(now)) {
+                                long hoursRemaining = Duration.between(now, ad.getEndDate()).toHours();
+                                remainingDays = hoursRemaining > 0 ? (hoursRemaining / 24) + (hoursRemaining % 24 > 0 ? 1 : 0) : 0L;
+                            } else {
+                                remainingDays = 0L;
+                            }
+                        }
+                        
+                        Long viewCount = advertisementViewRepository.countByAdvertisementId(ad.getId());
+                        
+                        return AdvertisementResponseDto.builder()
+                                .id(ad.getId())
+                                .userId(ad.getUserId())
+                                .image(ad.getImage())
+                                .text(ad.getText())
+                                .startDate(ad.getStartDate())
+                                .endDate(ad.getEndDate())
+                                .featured(ad.isFeatured())
+                                .createdAt(ad.getCreatedAt())
+                                .updatedAt(ad.getUpdatedAt())
+                                .active(ad.isActive())
+                                .hidden(ad.isHidden())
+                                .remainingDays(remainingDays)
+                                .viewCount(viewCount)
+                                .build();
+                    })
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Error fetching dashboard advertisements: {}", e.getMessage(), e);
+            return new ArrayList<>();
+        }
     }
 }

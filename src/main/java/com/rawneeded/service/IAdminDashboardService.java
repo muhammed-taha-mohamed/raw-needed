@@ -1,5 +1,6 @@
 package com.rawneeded.service;
 
+import com.rawneeded.dto.advertisement.AdvertisementResponseDto;
 import com.rawneeded.dto.dashboard.AdSubscriptionStatsDto;
 import com.rawneeded.dto.dashboard.DashboardStatsDto;
 import com.rawneeded.dto.dashboard.PendingCountsDto;
@@ -21,4 +22,6 @@ public interface IAdminDashboardService {
     PendingCountsDto getPendingCounts();
 
     List<UserSubscriptionResponseDto> getHistoricalSubscriptions();
+
+    List<AdvertisementResponseDto> getDashboardAdvertisements();
 }

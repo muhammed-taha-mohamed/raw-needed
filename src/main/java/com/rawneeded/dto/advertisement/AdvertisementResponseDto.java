@@ -22,4 +22,11 @@ public class AdvertisementResponseDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private boolean active;
+    private boolean hidden;
+    
+    /** Remaining days until ad expires (null if expired) */
+    private Long remainingDays;
+    
+    /** Total number of views */
+    private Long viewCount;
 }

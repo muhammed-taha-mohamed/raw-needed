@@ -1,6 +1,7 @@
 package com.rawneeded.controller;
 
 import com.rawneeded.dto.ResponsePayload;
+import com.rawneeded.dto.advertisement.AdvertisementResponseDto;
 import com.rawneeded.dto.dashboard.AdSubscriptionStatsDto;
 import com.rawneeded.dto.dashboard.DashboardStatsDto;
 import com.rawneeded.dto.dashboard.PendingCountsDto;
@@ -87,6 +88,16 @@ public class AdminDashboardController {
         return ResponseEntity.ok(ResponsePayload.builder()
                 .date(LocalDateTime.now())
                 .content(Map.of("success", true, "data", list))
+                .build());
+    }
+
+    @GetMapping("/advertisements")
+    @Operation(summary = "Get all active advertisements for dashboard (list, not paginated)")
+    public ResponseEntity<ResponsePayload> getDashboardAdvertisements() {
+        List<AdvertisementResponseDto> advertisements = adminDashboardService.getDashboardAdvertisements();
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of("success", true, "data", advertisements))
                 .build());
     }
 }

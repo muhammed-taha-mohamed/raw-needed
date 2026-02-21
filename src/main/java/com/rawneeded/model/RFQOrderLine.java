@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 @Document
@@ -50,4 +51,7 @@ public class RFQOrderLine {
 
     // Supplier Response
     private SupplierResponseOnOrderDTO supplierResponse;
+
+    // Order creation date
+    private LocalDateTime createdAt;
 }

@@ -18,6 +18,10 @@ public interface AdvertisementRepository extends MongoRepository<Advertisement, 
     @Query("{ 'active': true, $or: [ { 'endDate': { $gte: ?0 } }, { 'endDate': null } ] }")
     Page<Advertisement> findActiveAndNotExpired(LocalDateTime now, Pageable pageable);
 
+    /** For client display: active, not expired, and not hidden */
+    @Query("{ 'active': true, 'hidden': false, $or: [ { 'endDate': { $gt: ?0 } }, { 'endDate': null } ] }")
+    Page<Advertisement> findActiveAndNotExpiredAndNotHidden(LocalDateTime now, Pageable pageable);
+
     Page<Advertisement> findByActiveTrueOrderByCreatedAtDesc(Pageable pageable);
     List<Advertisement> findByUserIdOrderByCreatedAtDesc(String userId);
     Page<Advertisement> findByUserIdOrderByCreatedAtDesc(String userId, Pageable pageable);

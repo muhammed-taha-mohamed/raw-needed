@@ -37,4 +37,8 @@ public class Advertisement {
 
     @Builder.Default
     private boolean active = true;
+
+    /** Ad is hidden (not shown to customers) but not deleted */
+    @Builder.Default
+    private boolean hidden = false;
 }

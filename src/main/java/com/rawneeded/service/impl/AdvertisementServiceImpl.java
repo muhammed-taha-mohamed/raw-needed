@@ -1,8 +1,10 @@
 package com.rawneeded.service.impl;
 
 import com.rawneeded.dto.advertisement.AdvertisementResponseDto;
+import com.rawneeded.dto.advertisement.AdvertisementViewStatsDto;
 import com.rawneeded.dto.advertisement.CreateAdvertisementRequestDto;
 import com.rawneeded.dto.advertisement.UpdateAdvertisementRequestDto;
+import com.rawneeded.model.AdvertisementView;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.enumeration.Role;
 import com.rawneeded.jwt.JwtTokenProvider;
@@ -13,6 +15,7 @@ import com.rawneeded.model.User;
 import com.rawneeded.repository.AdPackageRepository;
 import com.rawneeded.repository.AdSubscriptionRepository;
 import com.rawneeded.repository.AdvertisementRepository;
+import com.rawneeded.repository.AdvertisementViewRepository;
 import com.rawneeded.repository.UserRepository;
 import com.rawneeded.service.IAdSubscriptionService;
 import com.rawneeded.service.IAdvertisementService;
@@ -25,6 +28,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -37,6 +41,7 @@ import static com.rawneeded.enumeration.UserSubscriptionStatus.APPROVED;
 public class AdvertisementServiceImpl implements IAdvertisementService {
 
     private final AdvertisementRepository advertisementRepository;
+    private final AdvertisementViewRepository advertisementViewRepository;
     private final UserRepository userRepository;
     private final AdPackageRepository adPackageRepository;
     private final AdSubscriptionRepository adSubscriptionRepository;
@@ -89,6 +94,7 @@ public class AdvertisementServiceImpl implements IAdvertisementService {
                     .active(true)
                     .build();
 
+            advertisement.setHidden(false);
             advertisement = advertisementRepository.save(advertisement);
             log.info("Advertisement created successfully with id: {}", advertisement.getId());
 
@@ -96,7 +102,7 @@ public class AdvertisementServiceImpl implements IAdvertisementService {
                 adSubscriptionService.consumeOneAd(userId);
             }
 
-            return mapToResponseDto(advertisement);
+            return mapToResponseDtoWithViews(advertisement);
         } catch (AbstractException e) {
             throw e;
         } catch (Exception e) {
@@ -127,7 +133,7 @@ public class AdvertisementServiceImpl implements IAdvertisementService {
             advertisement = advertisementRepository.save(advertisement);
 
             log.info("Advertisement updated successfully");
-            return mapToResponseDto(advertisement);
+            return mapToResponseDtoWithViews(advertisement);
         } catch (AbstractException e) {
             throw e;
         } catch (Exception e) {
@@ -141,17 +147,21 @@ public class AdvertisementServiceImpl implements IAdvertisementService {
         try {
             String token = messagesUtil.getAuthToken();
             String userId = jwtTokenProvider.getOwnerIdFromToken(token);
-            log.info("Deleting advertisement: {} for user: {}", advertisementId, userId);
+            log.info("Hiding advertisement: {} for user: {}", advertisementId, userId);
 
             Advertisement advertisement = advertisementRepository.findByIdAndUserId(advertisementId, userId)
                     .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("ADVERTISEMENT_NOT_FOUND")));
 
-            advertisementRepository.delete(advertisement);
-            log.info("Advertisement deleted successfully");
+            // Hide instead of delete
+            advertisement.setHidden(true);
+            advertisement.setActive(false);
+            advertisement.setUpdatedAt(LocalDateTime.now());
+            advertisementRepository.save(advertisement);
+            log.info("Advertisement hidden successfully");
         } catch (AbstractException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Error deleting advertisement: {}", e.getMessage(), e);
+            log.error("Error hiding advertisement: {}", e.getMessage(), e);
             throw new AbstractException(messagesUtil.getMessage("ADVERTISEMENT_DELETE_FAIL"));
         }
     }
@@ -165,7 +175,7 @@ public class AdvertisementServiceImpl implements IAdvertisementService {
 
             List<Advertisement> advertisements = advertisementRepository.findByUserIdOrderByCreatedAtDesc(userId);
             return advertisements.stream()
-                    .map(this::mapToResponseDto)
+                    .map(this::mapToResponseDtoWithViews)
                     .collect(Collectors.toList());
         } catch (Exception e) {
             log.error("Error fetching user advertisements: {}", e.getMessage(), e);
@@ -176,12 +186,12 @@ public class AdvertisementServiceImpl implements IAdvertisementService {
     @Override
     public Page<AdvertisementResponseDto> getAllAdvertisements(Pageable pageable) {
         try {
-            log.info("Fetching all active non-expired advertisements (featured first)");
+            log.info("Fetching all active non-expired and non-hidden advertisements (featured first)");
             LocalDateTime now = LocalDateTime.now();
             Sort sort = Sort.by(Sort.Direction.DESC, "featured").and(Sort.by(Sort.Direction.DESC, "createdAt"));
             Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
-            Page<Advertisement> advertisements = advertisementRepository.findActiveAndNotExpired(now, sortedPageable);
-            return advertisements.map(this::mapToResponseDto);
+            Page<Advertisement> advertisements = advertisementRepository.findActiveAndNotExpiredAndNotHidden(now, sortedPageable);
+            return advertisements.map(this::mapToResponseDtoWithViews);
         } catch (Exception e) {
             log.error("Error fetching all advertisements: {}", e.getMessage(), e);
             throw new AbstractException(messagesUtil.getMessage("ADVERTISEMENT_FETCH_ALL_FAIL"));
@@ -215,6 +225,122 @@ public class AdvertisementServiceImpl implements IAdvertisementService {
                 .createdAt(advertisement.getCreatedAt())
                 .updatedAt(advertisement.getUpdatedAt())
                 .active(advertisement.isActive())
+                .hidden(advertisement.isHidden())
                 .build();
+    }
+
+    private AdvertisementResponseDto mapToResponseDtoWithViews(Advertisement advertisement) {
+        LocalDateTime now = LocalDateTime.now();
+        Long remainingDays = null;
+        if (advertisement.getEndDate() != null) {
+            if (advertisement.getEndDate().isAfter(now)) {
+                // Calculate remaining days (can be 0 if less than 24 hours remaining)
+                long hoursRemaining = Duration.between(now, advertisement.getEndDate()).toHours();
+                remainingDays = hoursRemaining > 0 ? (hoursRemaining / 24) + (hoursRemaining % 24 > 0 ? 1 : 0) : 0L;
+            } else {
+                // Expired
+                remainingDays = 0L;
+            }
+        }
+
+        Long viewCount = advertisementViewRepository.countByAdvertisementId(advertisement.getId());
+
+        return AdvertisementResponseDto.builder()
+                .id(advertisement.getId())
+                .userId(advertisement.getUserId())
+                .image(advertisement.getImage())
+                .text(advertisement.getText())
+                .startDate(advertisement.getStartDate())
+                .endDate(advertisement.getEndDate())
+                .featured(advertisement.isFeatured())
+                .createdAt(advertisement.getCreatedAt())
+                .updatedAt(advertisement.getUpdatedAt())
+                .active(advertisement.isActive())
+                .hidden(advertisement.isHidden())
+                .remainingDays(remainingDays)
+                .viewCount(viewCount)
+                .build();
+    }
+
+    @Override
+    public void recordView(String advertisementId) {
+        try {
+            String token = messagesUtil.getAuthToken();
+            if (token == null || token.isEmpty()) {
+                return; // User not logged in, don't record view
+            }
+            
+            String viewerId = jwtTokenProvider.getOwnerIdFromToken(token);
+            if (viewerId == null || viewerId.isEmpty()) {
+                return; // Invalid token, don't record view
+            }
+            
+            // Check if advertisement exists and is visible
+            Advertisement advertisement = advertisementRepository.findById(advertisementId)
+                    .orElse(null);
+            
+            if (advertisement == null || advertisement.isHidden() || !advertisement.isActive()) {
+                log.debug("Skipping view recording: ad {} is null, hidden, or inactive", advertisementId);
+                return; // Don't record views for hidden/inactive ads
+            }
+            
+            // Check if already viewed by this user - only count once per user
+            boolean alreadyViewed = advertisementViewRepository.existsByAdvertisementIdAndViewerId(advertisementId, viewerId);
+            if (alreadyViewed) {
+                log.debug("Skipping view recording: user {} already viewed ad {}", viewerId, advertisementId);
+                return; // Already viewed, skip - one view per user
+            }
+            
+            User viewer = userRepository.findById(viewerId).orElse(null);
+            if (viewer == null) {
+                log.debug("Skipping view recording: user {} not found", viewerId);
+                return;
+            }
+            
+            AdvertisementView view = AdvertisementView.builder()
+                    .advertisement(advertisement)
+                    .advertisementId(advertisementId)
+                    .viewer(viewer)
+                    .viewerId(viewerId)
+                    .viewedAt(LocalDateTime.now())
+                    .build();
+            
+            advertisementViewRepository.save(view);
+            log.info("Recorded view for advertisement {} by user {} at {}", advertisementId, viewerId, LocalDateTime.now());
+        } catch (Exception e) {
+            log.error("Error recording advertisement view: {}", e.getMessage(), e);
+            // Don't throw exception - view tracking is not critical
+        }
+    }
+
+    @Override
+    public List<AdvertisementViewStatsDto> getViewStats(String advertisementId) {
+        try {
+            String token = messagesUtil.getAuthToken();
+            String userId = jwtTokenProvider.getOwnerIdFromToken(token);
+            
+            // Verify user owns the advertisement
+            Advertisement advertisement = advertisementRepository.findByIdAndUserId(advertisementId, userId)
+                    .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("ADVERTISEMENT_NOT_FOUND")));
+            
+            List<AdvertisementView> views = advertisementViewRepository.findByAdvertisementIdOrderByViewedAtDesc(advertisementId);
+            
+            return views.stream()
+                    .map(view -> {
+                        User viewer = view.getViewer();
+                        return AdvertisementViewStatsDto.builder()
+                                .viewerId(view.getViewerId())
+                                .viewerName(viewer != null ? (viewer.getName() != null ? viewer.getName() : viewer.getEmail()) : "Unknown")
+                                .viewerEmail(viewer != null ? viewer.getEmail() : "Unknown")
+                                .viewedAt(view.getViewedAt())
+                                .build();
+                    })
+                    .collect(Collectors.toList());
+        } catch (AbstractException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error fetching view stats: {}", e.getMessage(), e);
+            throw new AbstractException(messagesUtil.getMessage("ADVERTISEMENT_FETCH_STATS_FAIL"));
+        }
     }
 }

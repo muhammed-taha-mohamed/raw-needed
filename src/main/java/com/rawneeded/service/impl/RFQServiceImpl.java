@@ -588,6 +588,7 @@ public class RFQServiceImpl implements IRFQService {
                     .customerApproved(null)
                     .specialOfferId(item.getSpecialOfferId()) // Add special offer ID
                     .supplierResponse(null)
+                    .createdAt(LocalDateTime.now())
                     .build();
         }).toList();
     }

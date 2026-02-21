@@ -47,6 +47,7 @@ public class AdPackageServiceImpl implements IAdPackageService {
                 .numberOfDays(dto.getNumberOfDays())
                 .pricePerAd(dto.getPricePerAd())
                 .featuredPrice(dto.getFeaturedPrice() != null ? dto.getFeaturedPrice() : BigDecimal.ZERO)
+                .specialOffers(dto.getSpecialOffers())
                 .active(dto.getActive() != null ? dto.getActive() : true)
                 .sortOrder(order)
                 .createdAt(LocalDateTime.now())
@@ -64,6 +65,8 @@ public class AdPackageServiceImpl implements IAdPackageService {
         if (dto.getNameEn() != null) pkg.setNameEn(dto.getNameEn());
         if (dto.getNumberOfDays() != null) pkg.setNumberOfDays(dto.getNumberOfDays());
         if (dto.getPricePerAd() != null) pkg.setPricePerAd(dto.getPricePerAd());
+        if (dto.getFeaturedPrice() != null) pkg.setFeaturedPrice(dto.getFeaturedPrice());
+        if (dto.getSpecialOffers() != null) pkg.setSpecialOffers(dto.getSpecialOffers());
         if (dto.getActive() != null) pkg.setActive(dto.getActive());
         if (dto.getSortOrder() != null) pkg.setSortOrder(dto.getSortOrder());
         pkg.setUpdatedAt(LocalDateTime.now());
@@ -94,6 +97,7 @@ public class AdPackageServiceImpl implements IAdPackageService {
                 .numberOfDays(p.getNumberOfDays())
                 .pricePerAd(pricePerAd != null ? pricePerAd : java.math.BigDecimal.ZERO)
                 .featuredPrice(p.getFeaturedPrice() != null ? p.getFeaturedPrice() : java.math.BigDecimal.ZERO)
+                .specialOffers(p.getSpecialOffers())
                 .active(p.isActive())
                 .sortOrder(p.getSortOrder())
                 .build();

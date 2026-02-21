@@ -34,12 +34,14 @@ public class SupplierReportController {
 
     @GetMapping("/product-card")
     @Operation(summary = "Get product card report")
-    public ResponseEntity<ResponsePayload> getProductCardReport(@RequestParam String productId) {
+    public ResponseEntity<ResponsePayload> getProductCardReport(
+            @RequestParam String productId,
+            @RequestParam(required = false) String customerId) {
         return ResponseEntity.ok(ResponsePayload.builder()
                 .date(LocalDateTime.now())
                 .content(Map.of(
                         "success", true,
-                        "data", supplierReportService.getProductCardReport(productId)
+                        "data", supplierReportService.getProductCardReport(productId, customerId)
                 ))
                 .build());
     }

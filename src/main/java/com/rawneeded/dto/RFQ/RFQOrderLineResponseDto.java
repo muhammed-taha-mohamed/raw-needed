@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 @Data
@@ -48,4 +49,7 @@ public class RFQOrderLineResponseDto {
     private SupplierResponseOnOrderDTO supplierResponse;
 
     private String specialOfferId; // Flag to indicate if order line is from special offer
+
+    // Order creation date
+    private LocalDateTime createdAt;
 }

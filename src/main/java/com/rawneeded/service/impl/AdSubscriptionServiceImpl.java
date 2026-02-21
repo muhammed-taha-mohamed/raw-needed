@@ -10,6 +10,7 @@ import com.rawneeded.enumeration.UserSubscriptionStatus;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.jwt.JwtTokenProvider;
 import com.rawneeded.model.AdPackage;
+import com.rawneeded.model.AdSpecialOffer;
 import com.rawneeded.model.AdSubscription;
 import com.rawneeded.model.User;
 import com.rawneeded.repository.AdPackageRepository;
@@ -67,6 +68,10 @@ public class AdSubscriptionServiceImpl implements IAdSubscriptionService {
         BigDecimal basePrice = adPackage.getPricePerAd().multiply(BigDecimal.valueOf(numberOfAds));
         BigDecimal featuredPrice = featured && adPackage.getFeaturedPrice() != null ? adPackage.getFeaturedPrice() : BigDecimal.ZERO;
         BigDecimal totalPrice = basePrice.add(featuredPrice);
+        
+        // Calculate discount based on special offers
+        BigDecimal discount = calculateDiscount(adPackage, numberOfAds, totalPrice);
+        BigDecimal finalPrice = totalPrice.subtract(discount);
 
         LocalDateTime now = LocalDateTime.now();
         AdSubscription sub = AdSubscription.builder()
@@ -84,6 +89,8 @@ public class AdSubscriptionServiceImpl implements IAdSubscriptionService {
                 .numberOfAds(numberOfAds)
                 .featured(featured)
                 .totalPrice(totalPrice)
+                .discount(discount)
+                .finalPrice(finalPrice)
                 .remainingAds(0)
                 .build();
         sub = adSubscriptionRepository.save(sub);
@@ -238,7 +245,32 @@ public class AdSubscriptionServiceImpl implements IAdSubscriptionService {
                 .numberOfAds(s.getNumberOfAds())
                 .featured(s.isFeatured())
                 .totalPrice(s.getTotalPrice())
+                .discount(s.getDiscount() != null ? s.getDiscount() : BigDecimal.ZERO)
+                .finalPrice(s.getFinalPrice() != null ? s.getFinalPrice() : (s.getTotalPrice() != null ? s.getTotalPrice() : BigDecimal.ZERO))
                 .remainingAds(s.getRemainingAds())
                 .build();
+    }
+
+    /**
+     * Calculate discount based on special offers in the ad package
+     * Similar to calculateDiscount for subscription plans but based on number of ads
+     */
+    private BigDecimal calculateDiscount(AdPackage adPackage, int numberOfAds, BigDecimal totalPrice) {
+        if (adPackage.getSpecialOffers() == null || adPackage.getSpecialOffers().isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        // Find the best applicable offer (highest discount for the given ad count)
+        AdSpecialOffer bestOffer = adPackage.getSpecialOffers().stream()
+                .filter(offer -> numberOfAds >= offer.getMinAdCount())
+                .max(java.util.Comparator.comparing(AdSpecialOffer::getDiscountPercentage))
+                .orElse(null);
+
+        if (bestOffer != null) {
+            double discountAmount = totalPrice.doubleValue() * (bestOffer.getDiscountPercentage() / 100.0);
+            return BigDecimal.valueOf(discountAmount).setScale(2, java.math.RoundingMode.HALF_UP);
+        }
+
+        return BigDecimal.ZERO;
     }
 }

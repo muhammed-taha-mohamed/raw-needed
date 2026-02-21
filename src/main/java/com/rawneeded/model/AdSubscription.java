@@ -56,8 +56,12 @@ public class AdSubscription {
     /** Whether ads should be featured at top */
     @Builder.Default
     private boolean featured = false;
-    /** Total amount (numberOfAds * pricePerAd + featuredPrice if featured) */
+    /** Total amount before discount (numberOfAds * pricePerAd + featuredPrice if featured) */
     private BigDecimal totalPrice;
+    /** Discount amount applied based on special offers */
+    private BigDecimal discount;
+    /** Final price after discount */
+    private BigDecimal finalPrice;
     /** Remaining ads for supplier after approval - decremented on each ad created */
     private int remainingAds;
 }

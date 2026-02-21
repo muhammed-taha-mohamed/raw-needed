@@ -68,7 +68,7 @@ public class SupplierReportServiceImpl implements ISupplierReportService {
     }
 
     @Override
-    public ProductCardReportDto getProductCardReport(String productId) {
+    public ProductCardReportDto getProductCardReport(String productId, String customerId) {
         String supplierOwnerId = assertSupplierAndFeatureAccess();
 
         if (productId == null || productId.isBlank()) {
@@ -86,6 +86,7 @@ public class SupplierReportServiceImpl implements ISupplierReportService {
         List<RFQOrderLine> allSupplierLines = lineRepository.findBySupplierId(supplierOwnerId);
         List<RFQOrderLine> productLines = allSupplierLines.stream()
                 .filter(l -> Objects.equals(l.getProductId(), productId))
+                .filter(l -> customerId == null || customerId.isBlank() || Objects.equals(l.getCustomerOwnerId(), customerId))
                 .toList();
 
         Map<String, RFQOrder> ordersById = new HashMap<>();

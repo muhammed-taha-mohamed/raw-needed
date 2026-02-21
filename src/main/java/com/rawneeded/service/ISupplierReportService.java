@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface ISupplierReportService {
     List<SupplierProductOptionDto> getSupplierProducts();
-    ProductCardReportDto getProductCardReport(String productId);
+    ProductCardReportDto getProductCardReport(String productId, String customerId);
     SupplierSalesReportDto getSalesReport(Integer month, Integer year);
     SupplierInsightsReportDto getInsightsReport();
 }

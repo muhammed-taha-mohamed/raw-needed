@@ -33,5 +33,7 @@ public class AdSubscriptionResponseDto {
     private int numberOfAds;
     private boolean featured;
     private BigDecimal totalPrice;
+    private BigDecimal discount;
+    private BigDecimal finalPrice;
     private int remainingAds;
 }

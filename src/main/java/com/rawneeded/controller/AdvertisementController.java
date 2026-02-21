@@ -4,6 +4,7 @@ import com.rawneeded.dto.ResponsePayload;
 import com.rawneeded.dto.advertisement.AdPackageResponseDto;
 import com.rawneeded.dto.advertisement.AdSettingsResponseDto;
 import com.rawneeded.dto.advertisement.AdvertisementResponseDto;
+import com.rawneeded.dto.advertisement.AdvertisementViewStatsDto;
 import com.rawneeded.dto.advertisement.CreateAdvertisementRequestDto;
 import com.rawneeded.dto.advertisement.UpdateAdvertisementRequestDto;
 import com.rawneeded.service.IAdPackageService;
@@ -150,6 +151,26 @@ public class AdvertisementController {
         return ResponseEntity.ok(ResponsePayload.builder()
                 .date(LocalDateTime.now())
                 .content(Map.of("success", true, "data", settings))
+                .build());
+    }
+
+    @PostMapping("/{advertisementId}/view")
+    @Operation(summary = "Record advertisement view", description = "Records when a user views an advertisement")
+    public ResponseEntity<ResponsePayload> recordView(@PathVariable String advertisementId) {
+        advertisementService.recordView(advertisementId);
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of("success", true, "message", "View recorded"))
+                .build());
+    }
+
+    @GetMapping("/{advertisementId}/stats")
+    @Operation(summary = "Get advertisement view statistics", description = "Get who viewed the advertisement and when (owner only)")
+    public ResponseEntity<ResponsePayload> getViewStats(@PathVariable String advertisementId) {
+        List<AdvertisementViewStatsDto> stats = advertisementService.getViewStats(advertisementId);
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of("success", true, "data", stats))
                 .build());
     }
 }
