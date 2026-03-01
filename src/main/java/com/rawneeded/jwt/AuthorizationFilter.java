@@ -66,7 +66,8 @@ public class AuthorizationFilter extends OncePerRequestFilter {
 
             filterChain.doFilter(request, response);
         } catch (Exception e) {
-            throwError(response);
+            return;
+            // throwError(response);
         }
     }
 
