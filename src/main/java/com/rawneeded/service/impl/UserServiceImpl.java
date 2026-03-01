@@ -8,9 +8,14 @@ import com.rawneeded.dto.staff.CreateStaffDto;
 import com.rawneeded.dto.user.CreateUserDto;
 import com.rawneeded.dto.user.SearchOperationsSummaryDto;
 import com.rawneeded.dto.user.SupplierInfo;
+import com.rawneeded.dto.admin.AdminUserDetailsDto;
+import com.rawneeded.dto.admin.CustomerStatsDto;
+import com.rawneeded.dto.admin.SupplierStatsDto;
 import com.rawneeded.dto.user.UserRequestDto;
 import com.rawneeded.dto.user.UserResponseDto;
 import com.rawneeded.enumeration.AccountStatus;
+import com.rawneeded.enumeration.LineStatus;
+import com.rawneeded.enumeration.OrderStatus;
 import com.rawneeded.enumeration.Role;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.error.exceptions.ExistingSessionException;
@@ -18,12 +23,16 @@ import com.rawneeded.jwt.JwtTokenProvider;
 import com.rawneeded.mapper.UserMapper;
 import com.rawneeded.model.Category;
 import com.rawneeded.model.SubCategory;
+import com.rawneeded.model.RFQOrderLine;
 import com.rawneeded.model.User;
 import com.rawneeded.model.UserSession;
 import com.rawneeded.model.UserSubscription;
 import com.rawneeded.repository.CategoryRepository;
 import com.rawneeded.repository.UserSessionRepository;
 import com.rawneeded.repository.SubCategoryRepository;
+import com.rawneeded.repository.ProductRepository;
+import com.rawneeded.repository.RFQOrderLineRepository;
+import com.rawneeded.repository.RFQOrderRepository;
 import com.rawneeded.repository.UserRepository;
 import com.rawneeded.service.ICartService;
 import com.rawneeded.service.IUserService;
@@ -71,6 +80,9 @@ public class UserServiceImpl implements IUserService {
     private final ICartService cartService;
     private final MessagesUtil messagesUtil;
     private final IUserSubscriptionService subscriptionService;
+    private final RFQOrderRepository orderRepository;
+    private final RFQOrderLineRepository orderLineRepository;
+    private final ProductRepository productRepository;
 
     // ================= AUTH METHODS ================= //
 
@@ -524,6 +536,79 @@ public class UserServiceImpl implements IUserService {
             log.error("Failed to get all users: {}", e.getMessage());
             throw new AbstractException(messagesUtil.getMessage("FAILED_TO_FETCH_USERS"));
         }
+    }
+
+    @Override
+    public Page<UserResponseDto> getSuppliers(Pageable pageable) {
+        try {
+            Page<User> users = userRepository.findAllByRole(Role.SUPPLIER_OWNER, pageable);
+            return userMapper.toResponsePages(users);
+        } catch (Exception e) {
+            log.error("Failed to get suppliers: {}", e.getMessage());
+            throw new AbstractException(messagesUtil.getMessage("FAILED_TO_FETCH_USERS"));
+        }
+    }
+
+    @Override
+    public Page<UserResponseDto> getCustomers(Pageable pageable) {
+        try {
+            Page<User> users = userRepository.findAllByRole(Role.CUSTOMER_OWNER, pageable);
+            return userMapper.toResponsePages(users);
+        } catch (Exception e) {
+            log.error("Failed to get customers: {}", e.getMessage());
+            throw new AbstractException(messagesUtil.getMessage("FAILED_TO_FETCH_USERS"));
+        }
+    }
+
+    @Override
+    public AdminUserDetailsDto getUserDetailsForAdmin(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AbstractException(messagesUtil.getMessage("USER_NOT_FOUND")));
+        UserResponseDto userDto = userMapper.toResponseDto(user);
+        List<UserResponseDto> staff = List.of();
+        if (user.getRole() == Role.SUPPLIER_OWNER || user.getRole() == Role.CUSTOMER_OWNER) {
+            List<User> staffList = userRepository.findAllByOwnerId(user.getId());
+            staff = staffList.stream().map(userMapper::toResponseDto).toList();
+        }
+        SupplierStatsDto supplierStats = null;
+        CustomerStatsDto customerStats = null;
+        if (user.getRole() == Role.SUPPLIER_OWNER) {
+            long totalProducts = productRepository.countBySupplier_Id(userId);
+            long inStockProducts = productRepository.countBySupplier_IdAndInStockTrue(userId);
+            long totalOrderLines = orderLineRepository.countBySupplierId(userId);
+            List<RFQOrderLine> lines = orderLineRepository.findBySupplierId(userId);
+            long distinctOrders = lines.stream().map(RFQOrderLine::getOrderId).distinct().count();
+            Map<String, Long> orderLinesByStatus = new java.util.HashMap<>();
+            for (LineStatus status : LineStatus.values()) {
+                long c = orderLineRepository.countBySupplierIdAndStatus(userId, status);
+                if (c > 0) orderLinesByStatus.put(status.name(), c);
+            }
+            supplierStats = SupplierStatsDto.builder()
+                    .totalProducts(totalProducts)
+                    .inStockProducts(inStockProducts)
+                    .totalOrderLines(totalOrderLines)
+                    .distinctOrders(distinctOrders)
+                    .orderLinesByStatus(orderLinesByStatus)
+                    .build();
+        }
+        if (user.getRole() == Role.CUSTOMER_OWNER) {
+            long totalOrders = orderRepository.countByOwnerId(userId);
+            Map<String, Long> ordersByStatus = new java.util.HashMap<>();
+            for (OrderStatus status : OrderStatus.values()) {
+                long c = orderRepository.countByOwnerIdAndStatus(userId, status);
+                if (c > 0) ordersByStatus.put(status.name(), c);
+            }
+            customerStats = CustomerStatsDto.builder()
+                    .totalOrders(totalOrders)
+                    .ordersByStatus(ordersByStatus)
+                    .build();
+        }
+        return AdminUserDetailsDto.builder()
+                .user(userDto)
+                .staff(staff)
+                .supplierStats(supplierStats)
+                .customerStats(customerStats)
+                .build();
     }
 
     @Override

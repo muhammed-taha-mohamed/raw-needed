@@ -7,5 +7,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ProductRepository extends MongoRepository<Product, String> {
 
-
+    long countBySupplier_Id(String supplierId);
+    long countBySupplier_IdAndInStockTrue(String supplierId);
 }

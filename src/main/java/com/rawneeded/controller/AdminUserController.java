@@ -1,6 +1,7 @@
 package com.rawneeded.controller;
 
 import com.rawneeded.dto.ResponsePayload;
+import com.rawneeded.dto.admin.AdminUserDetailsDto;
 import com.rawneeded.dto.admin.CreateAdminDto;
 import com.rawneeded.dto.admin.UpdateAdminDto;
 import com.rawneeded.dto.user.UserResponseDto;
@@ -34,6 +35,36 @@ public class AdminUserController {
                 .content(Map.of(
                         "success", true,
                         "data", users))
+                .build());
+    }
+
+    @GetMapping("/suppliers")
+    @Operation(summary = "Get suppliers (SUPPLIER_OWNER only)", description = "Paginated list of supplier owners")
+    public ResponseEntity<ResponsePayload> getSuppliers(Pageable pageable) {
+        Page<UserResponseDto> users = userService.getSuppliers(pageable);
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of("success", true, "data", users))
+                .build());
+    }
+
+    @GetMapping("/customers")
+    @Operation(summary = "Get customers (CUSTOMER_OWNER only)", description = "Paginated list of customer owners")
+    public ResponseEntity<ResponsePayload> getCustomers(Pageable pageable) {
+        Page<UserResponseDto> users = userService.getCustomers(pageable);
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of("success", true, "data", users))
+                .build());
+    }
+
+    @GetMapping("/{userId}/details")
+    @Operation(summary = "Get user details for admin", description = "User with subscription and staff list (for owners)")
+    public ResponseEntity<ResponsePayload> getUserDetails(@PathVariable String userId) {
+        AdminUserDetailsDto dto = userService.getUserDetailsForAdmin(userId);
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of("success", true, "data", dto))
                 .build());
     }
 

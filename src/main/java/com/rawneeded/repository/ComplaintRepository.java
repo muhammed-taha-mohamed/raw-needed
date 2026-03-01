@@ -17,4 +17,8 @@ public interface ComplaintRepository extends MongoRepository<Complaint, String> 
     Page<Complaint> findAllByOrderByCreatedAtDesc(Pageable pageable);
     Optional<Complaint> findByIdAndUserId(String id, String userId);
     List<Complaint> findByUserIdAndStatus(String userId, ComplaintStatus status);
+
+    long countByStatus(ComplaintStatus status);
+
+    List<Complaint> findFirst10ByOrderByCreatedAtDesc();
 }

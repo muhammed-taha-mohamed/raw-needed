@@ -82,6 +82,21 @@ public class ComplaintServiceImpl implements IComplaintService {
 
             complaintMessageRepository.save(initialMessage);
 
+            // Auto support reply from a SUPER_ADMIN user (frontend shows localized text for key COMPLAINT_AUTO_REPLY)
+            List<User> superAdmins = userRepository.findAllByRole(Role.SUPER_ADMIN);
+            User autoReplySender = superAdmins.isEmpty() ? null : superAdmins.get(0);
+            ComplaintMessage autoReply = ComplaintMessage.builder()
+                    .complaint(complaint)
+                    .complaintId(complaint.getId())
+                    .user(autoReplySender)
+                    .userId(autoReplySender != null ? autoReplySender.getId() : null)
+                    .message("COMPLAINT_AUTO_REPLY")
+                    .image(null)
+                    .isAdmin(true)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            complaintMessageRepository.save(autoReply);
+
             // Send notification and email to all admins
             sendNotificationToAdmins(complaint.getId(), complaint.getSubject(), complaint.getDescription(), user.getName());
 
