@@ -21,11 +21,15 @@ public interface UserSubscriptionRepository extends MongoRepository<UserSubscrip
 
     List<UserSubscription> findByUserIdAndIdNot(String userId, String id);
 
+    List<UserSubscription> findByStatus(UserSubscriptionStatus status);
+
     long countByStatus(UserSubscriptionStatus status);
 
     long countByStatusAndExpiryDateAfter(UserSubscriptionStatus status, LocalDateTime date);
 
     long countBySubmissionDateAfter(LocalDateTime date);
+
+    long countBySubmissionDateBetween(LocalDateTime start, LocalDateTime end);
 
     Page<UserSubscription> findAllByOrderBySubmissionDateDesc(Pageable pageable);
 

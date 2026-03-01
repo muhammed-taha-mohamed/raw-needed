@@ -13,6 +13,8 @@ import com.rawneeded.dto.user.SearchOperationsSummaryDto;
 import com.rawneeded.dto.user.SupplierInfo;
 import com.rawneeded.dto.user.UserRequestDto;
 import com.rawneeded.dto.user.UserResponseDto;
+import com.rawneeded.dto.admin.AdminUserDetailsDto;
+import com.rawneeded.enumeration.Role;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -53,4 +55,10 @@ public interface IUserService {
     UserResponseDto updateAdminUser(String userId, UpdateAdminDto dto);
     void deleteAdminUser(String userId);
     Page<UserResponseDto> getAdminUsers(Pageable pageable);
+
+    Page<UserResponseDto> getSuppliers(Pageable pageable);
+
+    Page<UserResponseDto> getCustomers(Pageable pageable);
+
+    AdminUserDetailsDto getUserDetailsForAdmin(String userId);
 }

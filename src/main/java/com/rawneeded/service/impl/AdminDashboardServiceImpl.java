@@ -1,13 +1,21 @@
 package com.rawneeded.service.impl;
 
 import com.rawneeded.dto.advertisement.AdvertisementResponseDto;
+import com.rawneeded.dto.dashboard.AdminDashboardOverviewDto;
 import com.rawneeded.dto.dashboard.AdSubscriptionStatsDto;
+import com.rawneeded.dto.dashboard.DashboardChartsDto;
+import com.rawneeded.dto.dashboard.DashboardCountsDto;
 import com.rawneeded.dto.dashboard.DashboardStatsDto;
 import com.rawneeded.dto.dashboard.MonthlyOrderStats;
 import com.rawneeded.dto.dashboard.PendingCountsDto;
+import com.rawneeded.dto.dashboard.PieSliceDto;
+import com.rawneeded.dto.dashboard.RecentComplaintSummaryDto;
+import com.rawneeded.dto.dashboard.RecentOrderSummaryDto;
 import com.rawneeded.dto.dashboard.SubscriptionSummaryDto;
+import com.rawneeded.dto.dashboard.TimeSeriesPointDto;
 import com.rawneeded.dto.dashboard.UserStatsDto;
 import com.rawneeded.dto.subscription.UserSubscriptionResponseDto;
+import com.rawneeded.enumeration.ComplaintStatus;
 import com.rawneeded.model.Advertisement;
 import com.rawneeded.repository.AdvertisementRepository;
 import com.rawneeded.repository.AdvertisementViewRepository;
@@ -17,10 +25,10 @@ import com.rawneeded.enumeration.Role;
 import com.rawneeded.enumeration.UserSubscriptionStatus;
 import com.rawneeded.jwt.JwtTokenProvider;
 import com.rawneeded.mapper.UserSubscriptionMapper;
+import com.rawneeded.model.Complaint;
 import com.rawneeded.model.RFQOrder;
 import com.rawneeded.model.RFQOrderLine;
 import com.rawneeded.model.UserSubscription;
-import com.rawneeded.model.AdSubscription;
 import com.rawneeded.repository.*;
 import com.rawneeded.service.IAdminDashboardService;
 import com.rawneeded.util.MessagesUtil;
@@ -31,6 +39,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.Month;
+import java.time.YearMonth;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,6 +63,163 @@ public class AdminDashboardServiceImpl implements IAdminDashboardService {
     private final UserSubscriptionMapper userSubscriptionMapper;
     private final JwtTokenProvider tokenProvider;
     private final MessagesUtil messagesUtil;
+    private final ComplaintRepository complaintRepository;
+    private final PostRepository postRepository;
+    private final OfferRepository offerRepository;
+    private final ProductRepository productRepository;
+    private final CategoryRepository categoryRepository;
+    private final SubCategoryRepository subCategoryRepository;
+    private final NotificationRepository notificationRepository;
+
+    @Override
+    public AdminDashboardOverviewDto getOverview() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startOfThisMonth = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+
+        SubscriptionSummaryDto subscriptionSummary = getSubscriptionSummary();
+        UserStatsDto userStats = getUserStats();
+        AdSubscriptionStatsDto adSubscriptionStats = getAdSubscriptionStats();
+        PendingCountsDto pendingCounts = getPendingCounts();
+        DashboardStatsDto dashboardStats = getDashboardStats();
+
+        List<TimeSeriesPointDto> ordersOverTime = buildOrdersOverTime(12);
+        List<TimeSeriesPointDto> subscriptionsOverTime = buildSubscriptionsOverTime(12);
+        List<PieSliceDto> ordersByStatus = buildOrdersByStatus();
+        List<PieSliceDto> usersByRole = buildUsersByRole();
+        List<TimeSeriesPointDto> revenueOverTime = buildRevenueOverTime(12);
+
+        List<RecentOrderSummaryDto> recentOrders = orderRepository.findFirst15ByOrderByCreatedAtDesc().stream()
+                .map(o -> RecentOrderSummaryDto.builder()
+                        .id(o.getId())
+                        .orderNumber(o.getOrderNumber())
+                        .status(o.getStatus())
+                        .userName(o.getUserName())
+                        .organizationName(o.getOrganizationName())
+                        .numberOfLines(o.getNumberOfLines())
+                        .createdAt(o.getCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
+        List<RecentComplaintSummaryDto> recentComplaints = complaintRepository.findFirst10ByOrderByCreatedAtDesc().stream()
+                .map(c -> RecentComplaintSummaryDto.builder()
+                        .id(c.getId())
+                        .subject(c.getSubject())
+                        .status(c.getStatus())
+                        .userId(c.getUserId())
+                        .createdAt(c.getCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
+
+        long totalProducts = productRepository.count();
+        long totalCategories = categoryRepository.count();
+        long totalSubCategories = subCategoryRepository.count();
+        long totalComplaints = complaintRepository.count();
+        long openComplaints = complaintRepository.countByStatus(ComplaintStatus.OPEN);
+        long totalPosts = postRepository.count();
+        long totalOffers = offerRepository.count();
+        long totalNotifications = notificationRepository.count();
+
+        List<UserSubscription> approvedSubs = userSubscriptionRepository.findByStatus(UserSubscriptionStatus.APPROVED);
+        double totalSubscriptionRevenue = approvedSubs.stream().mapToDouble(UserSubscription::getFinalPrice).sum();
+        double subscriptionRevenueThisMonth = approvedSubs.stream()
+                .filter(s -> s.getSubmissionDate() != null && !s.getSubmissionDate().isBefore(startOfThisMonth))
+                .mapToDouble(UserSubscription::getFinalPrice)
+                .sum();
+        long addSearchesPending = addSearchesRequestRepository.countByStatus(UserSubscriptionStatus.PENDING);
+
+        return AdminDashboardOverviewDto.builder()
+                .subscriptionSummary(subscriptionSummary)
+                .userStats(userStats)
+                .adSubscriptionStats(adSubscriptionStats)
+                .pendingCounts(pendingCounts)
+                .dashboardStats(dashboardStats)
+                .ordersOverTime(ordersOverTime)
+                .subscriptionsOverTime(subscriptionsOverTime)
+                .ordersByStatus(ordersByStatus)
+                .usersByRole(usersByRole)
+                .revenueOverTime(revenueOverTime)
+                .recentOrders(recentOrders)
+                .recentComplaints(recentComplaints)
+                .totalProducts(totalProducts)
+                .totalCategories(totalCategories)
+                .totalSubCategories(totalSubCategories)
+                .totalComplaints(totalComplaints)
+                .openComplaints(openComplaints)
+                .totalPosts(totalPosts)
+                .totalOffers(totalOffers)
+                .totalNotifications(totalNotifications)
+                .totalSubscriptionRevenue(totalSubscriptionRevenue)
+                .subscriptionRevenueThisMonth(subscriptionRevenueThisMonth)
+                .addSearchesPending(addSearchesPending)
+                .build();
+    }
+
+    private List<TimeSeriesPointDto> buildOrdersOverTime(int months) {
+        List<TimeSeriesPointDto> result = new ArrayList<>();
+        for (int i = months - 1; i >= 0; i--) {
+            YearMonth ym = YearMonth.now().minusMonths(i);
+            LocalDateTime start = ym.atDay(1).atStartOfDay();
+            LocalDateTime end = ym.atEndOfMonth().atTime(23, 59, 59, 999_999_999);
+            long count = orderRepository.countByCreatedAtBetween(start, end);
+            String label = ym.getMonth().getDisplayName(TextStyle.SHORT, Locale.ENGLISH) + " " + ym.getYear();
+            result.add(TimeSeriesPointDto.builder().label(label).value(count).build());
+        }
+        return result;
+    }
+
+    private List<TimeSeriesPointDto> buildSubscriptionsOverTime(int months) {
+        List<TimeSeriesPointDto> result = new ArrayList<>();
+        for (int i = months - 1; i >= 0; i--) {
+            YearMonth ym = YearMonth.now().minusMonths(i);
+            LocalDateTime start = ym.atDay(1).atStartOfDay();
+            LocalDateTime end = ym.atEndOfMonth().atTime(23, 59, 59, 999_999_999);
+            long count = userSubscriptionRepository.countBySubmissionDateBetween(start, end);
+            String label = ym.getMonth().getDisplayName(TextStyle.SHORT, Locale.ENGLISH) + " " + ym.getYear();
+            result.add(TimeSeriesPointDto.builder().label(label).value(count).build());
+        }
+        return result;
+    }
+
+    private List<PieSliceDto> buildOrdersByStatus() {
+        List<RFQOrder> all = orderRepository.findAll();
+        Map<OrderStatus, Long> byStatus = all.stream()
+                .filter(o -> o.getStatus() != null)
+                .collect(Collectors.groupingBy(RFQOrder::getStatus, Collectors.counting()));
+        List<PieSliceDto> result = new ArrayList<>();
+        for (OrderStatus status : OrderStatus.values()) {
+            long count = byStatus.getOrDefault(status, 0L);
+            result.add(PieSliceDto.builder().name(status.name()).value(count).build());
+        }
+        return result;
+    }
+
+    private List<PieSliceDto> buildUsersByRole() {
+        List<PieSliceDto> result = new ArrayList<>();
+        for (Role role : Role.values()) {
+            long count = userRepository.countByRole(role);
+            if (count > 0) {
+                result.add(PieSliceDto.builder().name(role.name()).value(count).build());
+            }
+        }
+        return result;
+    }
+
+    private List<TimeSeriesPointDto> buildRevenueOverTime(int months) {
+        List<UserSubscription> approved = userSubscriptionRepository.findByStatus(UserSubscriptionStatus.APPROVED);
+        Map<YearMonth, Double> revenueByMonth = approved.stream()
+                .filter(s -> s.getSubmissionDate() != null)
+                .collect(Collectors.groupingBy(
+                        s -> YearMonth.from(s.getSubmissionDate()),
+                        Collectors.summingDouble(UserSubscription::getFinalPrice)
+                ));
+        List<TimeSeriesPointDto> result = new ArrayList<>();
+        for (int i = months - 1; i >= 0; i--) {
+            YearMonth ym = YearMonth.now().minusMonths(i);
+            long value = revenueByMonth.getOrDefault(ym, 0.0).longValue();
+            String label = ym.getMonth().getDisplayName(TextStyle.SHORT, Locale.ENGLISH) + " " + ym.getYear();
+            result.add(TimeSeriesPointDto.builder().label(label).value(value).build());
+        }
+        return result;
+    }
 
     @Override
     public DashboardStatsDto getDashboardStats() {
@@ -379,5 +545,77 @@ public class AdminDashboardServiceImpl implements IAdminDashboardService {
             log.error("Error fetching dashboard advertisements: {}", e.getMessage(), e);
             return new ArrayList<>();
         }
+    }
+
+    @Override
+    public DashboardChartsDto getDashboardCharts() {
+        return DashboardChartsDto.builder()
+                .ordersOverTime(buildOrdersOverTime(12))
+                .subscriptionsOverTime(buildSubscriptionsOverTime(12))
+                .revenueOverTime(buildRevenueOverTime(12))
+                .ordersByStatus(buildOrdersByStatus())
+                .usersByRole(buildUsersByRole())
+                .build();
+    }
+
+    @Override
+    public List<RecentOrderSummaryDto> getRecentOrders() {
+        return orderRepository.findFirst15ByOrderByCreatedAtDesc().stream()
+                .map(o -> RecentOrderSummaryDto.builder()
+                        .id(o.getId())
+                        .orderNumber(o.getOrderNumber())
+                        .status(o.getStatus())
+                        .userName(o.getUserName())
+                        .organizationName(o.getOrganizationName())
+                        .numberOfLines(o.getNumberOfLines())
+                        .createdAt(o.getCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<RecentComplaintSummaryDto> getRecentComplaints() {
+        return complaintRepository.findFirst10ByOrderByCreatedAtDesc().stream()
+                .map(c -> RecentComplaintSummaryDto.builder()
+                        .id(c.getId())
+                        .subject(c.getSubject())
+                        .status(c.getStatus())
+                        .userId(c.getUserId())
+                        .createdAt(c.getCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public DashboardCountsDto getDashboardCounts() {
+        LocalDateTime startOfThisMonth = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+        long totalProducts = productRepository.count();
+        long totalCategories = categoryRepository.count();
+        long totalSubCategories = subCategoryRepository.count();
+        long totalComplaints = complaintRepository.count();
+        long openComplaints = complaintRepository.countByStatus(ComplaintStatus.OPEN);
+        long totalPosts = postRepository.count();
+        long totalOffers = offerRepository.count();
+        long totalNotifications = notificationRepository.count();
+        List<UserSubscription> approvedSubs = userSubscriptionRepository.findByStatus(UserSubscriptionStatus.APPROVED);
+        double totalSubscriptionRevenue = approvedSubs.stream().mapToDouble(UserSubscription::getFinalPrice).sum();
+        double subscriptionRevenueThisMonth = approvedSubs.stream()
+                .filter(s -> s.getSubmissionDate() != null && !s.getSubmissionDate().isBefore(startOfThisMonth))
+                .mapToDouble(UserSubscription::getFinalPrice)
+                .sum();
+        long addSearchesPending = addSearchesRequestRepository.countByStatus(UserSubscriptionStatus.PENDING);
+        return DashboardCountsDto.builder()
+                .totalProducts(totalProducts)
+                .totalCategories(totalCategories)
+                .totalSubCategories(totalSubCategories)
+                .totalComplaints(totalComplaints)
+                .openComplaints(openComplaints)
+                .totalPosts(totalPosts)
+                .totalOffers(totalOffers)
+                .totalNotifications(totalNotifications)
+                .totalSubscriptionRevenue(totalSubscriptionRevenue)
+                .subscriptionRevenueThisMonth(subscriptionRevenueThisMonth)
+                .addSearchesPending(addSearchesPending)
+                .build();
     }
 }

@@ -2,9 +2,14 @@ package com.rawneeded.controller;
 
 import com.rawneeded.dto.ResponsePayload;
 import com.rawneeded.dto.advertisement.AdvertisementResponseDto;
+import com.rawneeded.dto.dashboard.AdminDashboardOverviewDto;
 import com.rawneeded.dto.dashboard.AdSubscriptionStatsDto;
+import com.rawneeded.dto.dashboard.DashboardChartsDto;
+import com.rawneeded.dto.dashboard.DashboardCountsDto;
 import com.rawneeded.dto.dashboard.DashboardStatsDto;
 import com.rawneeded.dto.dashboard.PendingCountsDto;
+import com.rawneeded.dto.dashboard.RecentComplaintSummaryDto;
+import com.rawneeded.dto.dashboard.RecentOrderSummaryDto;
 import com.rawneeded.dto.dashboard.SubscriptionSummaryDto;
 import com.rawneeded.dto.dashboard.UserStatsDto;
 import com.rawneeded.service.IAdminDashboardService;
@@ -25,6 +30,19 @@ import java.util.Map;
 public class AdminDashboardController {
 
     private final IAdminDashboardService adminDashboardService;
+
+    @GetMapping("/overview")
+    @Operation(
+            summary = "Get full admin dashboard overview",
+            description = "Returns all stats, charts, and report data in one call for the admin dashboard"
+    )
+    public ResponseEntity<ResponsePayload> getOverview() {
+        AdminDashboardOverviewDto overview = adminDashboardService.getOverview();
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of("success", true, "data", overview))
+                .build());
+    }
 
     @GetMapping("/stats")
     @Operation(
@@ -98,6 +116,46 @@ public class AdminDashboardController {
         return ResponseEntity.ok(ResponsePayload.builder()
                 .date(LocalDateTime.now())
                 .content(Map.of("success", true, "data", advertisements))
+                .build());
+    }
+
+    @GetMapping("/charts")
+    @Operation(summary = "Get dashboard chart data only (orders/subscriptions/revenue over time, pies)")
+    public ResponseEntity<ResponsePayload> getDashboardCharts() {
+        DashboardChartsDto dto = adminDashboardService.getDashboardCharts();
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of("success", true, "data", dto))
+                .build());
+    }
+
+    @GetMapping("/recent-orders")
+    @Operation(summary = "Get recent orders for dashboard table")
+    public ResponseEntity<ResponsePayload> getRecentOrders() {
+        List<RecentOrderSummaryDto> list = adminDashboardService.getRecentOrders();
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of("success", true, "data", list))
+                .build());
+    }
+
+    @GetMapping("/recent-complaints")
+    @Operation(summary = "Get recent complaints for dashboard table")
+    public ResponseEntity<ResponsePayload> getRecentComplaints() {
+        List<RecentComplaintSummaryDto> list = adminDashboardService.getRecentComplaints();
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of("success", true, "data", list))
+                .build());
+    }
+
+    @GetMapping("/counts")
+    @Operation(summary = "Get dashboard extra counts (products, categories, complaints, revenue, etc.)")
+    public ResponseEntity<ResponsePayload> getDashboardCounts() {
+        DashboardCountsDto dto = adminDashboardService.getDashboardCounts();
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of("success", true, "data", dto))
                 .build());
     }
 }

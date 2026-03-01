@@ -10,12 +10,17 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface RFQOrderRepository extends MongoRepository<RFQOrder, String> {
+
+    long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
     Page<RFQOrder> findByOwnerIdOrderByCreatedAtDesc(String ownerId, Pageable pageable);
 
     Page<RFQOrder> findByOwnerIdAndStatusOrderByCreatedAtDesc(String ownerId, OrderStatus status,  Pageable pageable);
 
     List<RFQOrder> findByOwnerIdOrderByCreatedAtDesc(String ownerId);
     List<RFQOrder> findByUserIdOrderByCreatedAtDesc(String userId);
-    
 
+    List<RFQOrder> findFirst15ByOrderByCreatedAtDesc();
+
+    long countByOwnerId(String ownerId);
+    long countByOwnerIdAndStatus(String ownerId, OrderStatus status);
 }
