@@ -1,6 +1,7 @@
 package com.rawneeded.controller;
 
 import com.rawneeded.dto.ResponsePayload;
+import com.rawneeded.dto.product.AddItemsRequestDto;
 import com.rawneeded.dto.product.CartDTO;
 import com.rawneeded.service.ICartService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -79,6 +80,19 @@ public class CartController {
             description = "This API is used to remove a product from the user's cart.")
     public ResponseEntity<ResponsePayload> removeItemFromCart(@RequestParam String userId, @RequestParam String productId) {
         CartDTO updatedCart = cartService.removeItemFromCart(userId, productId);
+        return ResponseEntity.ok(ResponsePayload.builder()
+                .date(LocalDateTime.now())
+                .content(Map.of(
+                        "success", true,
+                        "data", updatedCart))
+                .build());
+    }
+
+    @PostMapping("/add-items")
+    @Operation(summary = "Bulk add items to the user's cart.",
+            description = "Adds multiple products to the user's cart in a single request.")
+    public ResponseEntity<ResponsePayload> addItemsToCart(@RequestBody AddItemsRequestDto request) {
+        CartDTO updatedCart = cartService.addItemsToCart(request);
         return ResponseEntity.ok(ResponsePayload.builder()
                 .date(LocalDateTime.now())
                 .content(Map.of(

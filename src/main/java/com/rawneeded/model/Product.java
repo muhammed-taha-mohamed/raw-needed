@@ -21,6 +21,8 @@ import java.util.Map;
 public class Product {
     private String id;
     private String name;
+    private String englishName;
+    private String arabicName;
     private String origin;
     @DBRef
     private User supplier;

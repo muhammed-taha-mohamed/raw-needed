@@ -505,7 +505,8 @@ public class RFQServiceImpl implements IRFQService {
                             .model(Map.of(
                                     "customerName", customer.getName() != null ? customer.getName() : "",
                                     "supplierName", line.getSupplierName() != null ? line.getSupplierName() : "",
-                                    "productName", line.getProductName() != null ? line.getProductName() : ""
+                                    "productName", line.getProductName() != null ? line.getProductName() : "",
+                                    "coaUrl", line.getSupplierResponse() != null ? line.getSupplierResponse().getAnalysisCertificateUrl() : null
                             ))
                             .build());
                 }

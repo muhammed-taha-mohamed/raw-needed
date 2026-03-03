@@ -1,6 +1,7 @@
 package com.rawneeded.service.impl;
 
 import com.rawneeded.dto.product.CartDTO;
+import com.rawneeded.dto.product.AddItemsRequestDto;
 import com.rawneeded.dto.product.CartItemDTO;
 import com.rawneeded.error.exceptions.AbstractException;
 import com.rawneeded.mapper.CartMapper;
@@ -16,7 +17,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -155,7 +159,71 @@ public class CartServiceImpl implements ICartService {
         }
     }
 
+    @Override
+    public CartDTO addItemsToCart(AddItemsRequestDto request) {
 
+        String userId = request.getUserId();
+        log.info("Start bulk adding items to cart for user: {}", userId);
+
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElseGet(() -> Cart.builder()
+                        .userId(userId)
+                        .items(new ArrayList<>())
+                        .build());
+
+        if (cart.getItems() == null) {
+            cart.setItems(new ArrayList<>());
+        }
+
+        // 1️⃣ Collect all productIds first
+        Set<String> productIds = request.getItems().stream()
+                .map(AddItemsRequestDto.AddItem::getProductId)
+                .collect(Collectors.toSet());
+
+        // 2️⃣ Fetch all products in ONE query
+        Map<String, Product> productMap = productRepository.findAllById(productIds)
+                .stream()
+                .collect(Collectors.toMap(Product::getId, p -> p));
+
+        // 3️⃣ Convert existing cart items to Map for O(1) lookup
+        Map<String, CartItemDTO> cartItemMap = cart.getItems()
+                .stream()
+                .collect(Collectors.toMap(CartItemDTO::getId, item -> item));
+
+        for (AddItemsRequestDto.AddItem addItem : request.getItems()) {
+
+            String productId = addItem.getProductId();
+            float quantity = addItem.getQuantity();
+            String specialOfferId = addItem.getSpecialOfferId();
+
+            Product product = productMap.get(productId);
+            if (product == null) {
+                throw new AbstractException(
+                        messagesUtil.getMessage("PRODUCT_NOT_FOUND"));
+            }
+
+            CartItemDTO existingItem = cartItemMap.get(productId);
+
+            if (existingItem != null) {
+                existingItem.setQuantity(quantity);
+                if (specialOfferId != null) {
+                    existingItem.setSpecialOfferId(specialOfferId);
+                }
+            } else {
+                CartItemDTO newItem = productMapper.toCartItemDto(product);
+                newItem.setQuantity(quantity);
+                if (specialOfferId != null) {
+                    newItem.setSpecialOfferId(specialOfferId);
+                }
+
+                cart.getItems().add(newItem);
+                cartItemMap.put(productId, newItem);
+            }
+        }
+
+        Cart savedCart = cartRepository.save(cart);
+        return cartMapper.toDTO(savedCart);
+    }
 
 }
 

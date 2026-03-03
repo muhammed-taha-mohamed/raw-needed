@@ -1,6 +1,7 @@
 package com.rawneeded.service;
 
 import com.rawneeded.dto.product.CartDTO;
+import com.rawneeded.dto.product.AddItemsRequestDto;
 
 public interface ICartService {
 
@@ -14,4 +15,6 @@ public interface ICartService {
     CartDTO addItemToCart(String userId, String productId, float quantity, String specialOfferId);
 
     CartDTO removeItemFromCart(String userId, String productId);
+
+    CartDTO addItemsToCart(AddItemsRequestDto request);
 }

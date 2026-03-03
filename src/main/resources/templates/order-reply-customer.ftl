@@ -16,6 +16,10 @@
         <h2>رد المورد على الطلب</h2>
         <p>عزيزي العميل <strong>${customerName!''}</strong>،</p>
         <p>قام المورد <strong>${supplierName!''}</strong> بالرد على طلبكم بخصوص المنتج <strong>${productName!''}</strong>.</p>
+        <#if coaUrl?? && coaUrl?has_content>
+        <p>تم إرفاق شهادة تحليل المنتج:</p>
+        <p><img src="${coaUrl}" alt="شهادة التحليل" style="max-width:100%;height:auto;border:1px solid #eee;border-radius:8px"/></p>
+        </#if>
         <p>يرجى تسجيل الدخول للمنصة لمراجعة العرض والموافقة أو التواصل.</p>
         <p>مع تحيات فريق Raw Needed</p>
     </div>
@@ -26,6 +30,10 @@
         <h2>Supplier Response</h2>
         <p>Dear Customer <strong>${customerName!''}</strong>,</p>
         <p>Supplier <strong>${supplierName!''}</strong> has responded to your order for <strong>${productName!''}</strong>.</p>
+        <#if coaUrl?? && coaUrl?has_content>
+        <p>The certificate of analysis has been attached:</p>
+        <p><img src="${coaUrl}" alt="Certificate of Analysis" style="max-width:100%;height:auto;border:1px solid #eee;border-radius:8px"/></p>
+        </#if>
         <p>Please log in to the platform to review the offer and approve or get in touch.</p>
         <p>Best regards, Raw Needed Team</p>
     </div>

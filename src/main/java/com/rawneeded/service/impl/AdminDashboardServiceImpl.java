@@ -82,11 +82,11 @@ public class AdminDashboardServiceImpl implements IAdminDashboardService {
         PendingCountsDto pendingCounts = getPendingCounts();
         DashboardStatsDto dashboardStats = getDashboardStats();
 
-        List<TimeSeriesPointDto> ordersOverTime = buildOrdersOverTime(12);
-        List<TimeSeriesPointDto> subscriptionsOverTime = buildSubscriptionsOverTime(12);
+        List<TimeSeriesPointDto> ordersOverTime = buildOrdersOverTime(6);
+        List<TimeSeriesPointDto> subscriptionsOverTime = buildSubscriptionsOverTime(6);
         List<PieSliceDto> ordersByStatus = buildOrdersByStatus();
         List<PieSliceDto> usersByRole = buildUsersByRole();
-        List<TimeSeriesPointDto> revenueOverTime = buildRevenueOverTime(12);
+        List<TimeSeriesPointDto> revenueOverTime = buildRevenueOverTime(6);
 
         List<RecentOrderSummaryDto> recentOrders = orderRepository.findFirst15ByOrderByCreatedAtDesc().stream()
                 .map(o -> RecentOrderSummaryDto.builder()
@@ -550,9 +550,9 @@ public class AdminDashboardServiceImpl implements IAdminDashboardService {
     @Override
     public DashboardChartsDto getDashboardCharts() {
         return DashboardChartsDto.builder()
-                .ordersOverTime(buildOrdersOverTime(12))
-                .subscriptionsOverTime(buildSubscriptionsOverTime(12))
-                .revenueOverTime(buildRevenueOverTime(12))
+                .ordersOverTime(buildOrdersOverTime(6))
+                .subscriptionsOverTime(buildSubscriptionsOverTime(6))
+                .revenueOverTime(buildRevenueOverTime(6))
                 .ordersByStatus(buildOrdersByStatus())
                 .usersByRole(buildUsersByRole())
                 .build();

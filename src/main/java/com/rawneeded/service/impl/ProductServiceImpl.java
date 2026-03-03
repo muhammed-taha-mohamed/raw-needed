@@ -87,13 +87,25 @@ public class ProductServiceImpl implements IProductService {
             log.info("Start creating a product: {}", dto);
             
             // Check if product with same name exists for this supplier
-            checkProductNameUnique(supplierId, dto.getName(), null);
+            String effectiveName = dto.getEnglishName() != null && !dto.getEnglishName().isBlank()
+                    ? dto.getEnglishName()
+                    : (dto.getName() != null && !dto.getName().isBlank() ? dto.getName() : dto.getArabicName());
+            checkProductNameUnique(supplierId, effectiveName, null);
             
             Product product = productMapper.toEntity(dto);
             validateSupplierCategoryAccess(supplierId, dto.getCategoryId());
 
             // set category
             setCategory(product, dto);
+            if (product.getEnglishName() == null && dto.getEnglishName() != null) {
+                product.setEnglishName(dto.getEnglishName());
+            }
+            if (product.getArabicName() == null && dto.getArabicName() != null) {
+                product.setArabicName(dto.getArabicName());
+            }
+            if (effectiveName != null) {
+                product.setName(effectiveName);
+            }
 
             return productMapper.toResponseDto(productRepository.save(product));
         } catch (AbstractException e) {
@@ -117,8 +129,11 @@ public class ProductServiceImpl implements IProductService {
                 String supplierId = existingProduct.getSupplier() != null ? existingProduct.getSupplier().getId() : null;
                 
                 // Check if product name is being changed and if it conflicts with existing product
-                if (dto.getName() != null && !dto.getName().equals(existingProduct.getName())) {
-                    checkProductNameUnique(supplierId, dto.getName(), id);
+                String effectiveName = dto.getEnglishName() != null && !dto.getEnglishName().isBlank()
+                        ? dto.getEnglishName()
+                        : (dto.getName() != null && !dto.getName().isBlank() ? dto.getName() : dto.getArabicName());
+                if (effectiveName != null && !effectiveName.equals(existingProduct.getName())) {
+                    checkProductNameUnique(supplierId, effectiveName, id);
                 }
                 
                 Product newProduct = product.get();
@@ -127,6 +142,15 @@ public class ProductServiceImpl implements IProductService {
 
                 // set category
                 setCategory(newProduct, dto);
+                if (dto.getEnglishName() != null) {
+                    newProduct.setEnglishName(dto.getEnglishName());
+                }
+                if (dto.getArabicName() != null) {
+                    newProduct.setArabicName(dto.getArabicName());
+                }
+                if (effectiveName != null) {
+                    newProduct.setName(effectiveName);
+                }
 
                 return productMapper.toResponseDto(productRepository.save(newProduct));
             } else {
@@ -192,11 +216,19 @@ public class ProductServiceImpl implements IProductService {
             List<Criteria> criteriaList = new ArrayList<>();
 
             if (filterDTO.getName() != null && !filterDTO.getName().isEmpty()) {
-                criteriaList.add(Criteria.where("name").regex(filterDTO.getName(), "i"));
+                String q = filterDTO.getName();
+                criteriaList.add(new Criteria().orOperator(
+                        Criteria.where("name").regex(q, "i"),
+                        Criteria.where("englishName").regex(q, "i"),
+                        Criteria.where("arabicName").regex(q, "i")
+                ));
             }
 
             if (filterDTO.getOrigin() != null && !filterDTO.getOrigin().isEmpty()) {
-                criteriaList.add(Criteria.where("origin").is(filterDTO.getOrigin()));
+                List<String> originCodes = resolveOriginCodes(filterDTO.getOrigin());
+                if (!originCodes.isEmpty()) {
+                    criteriaList.add(Criteria.where("origin").in(originCodes));
+                }
             }
 
             if (filterDTO.getSupplierId() != null && !filterDTO.getSupplierId().isEmpty()) {
@@ -229,6 +261,92 @@ public class ProductServiceImpl implements IProductService {
         } catch (Exception e) {
             throw new AbstractException(e.getMessage());
         }
+    }
+
+    private List<String> resolveOriginCodes(String query) {
+        if (query == null || query.isBlank()) return List.of();
+        String q = query.trim().toLowerCase();
+        String[][] countries = new String[][]{
+                {"Saudi Arabia", "SA"},
+                {"Egypt", "EG"},
+                {"United Arab Emirates", "AE"},
+                {"Kuwait", "KW"},
+                {"Qatar", "QA"},
+                {"Bahrain", "BH"},
+                {"Oman", "OM"},
+                {"Jordan", "JO"},
+                {"Lebanon", "LB"},
+                {"Syria", "SY"},
+                {"Iraq", "IQ"},
+                {"Yemen", "YE"},
+                {"Palestine", "PS"},
+                {"Libya", "LY"},
+                {"Tunisia", "TN"},
+                {"Algeria", "DZ"},
+                {"Morocco", "MA"},
+                {"Sudan", "SD"},
+                {"Turkey", "TR"},
+                {"Iran", "IR"},
+                {"Pakistan", "PK"},
+                {"India", "IN"},
+                {"China", "CN"},
+                {"Japan", "JP"},
+                {"South Korea", "KR"},
+                {"Taiwan", "TW"},
+                {"Thailand", "TH"},
+                {"Vietnam", "VN"},
+                {"Malaysia", "MY"},
+                {"Indonesia", "ID"},
+                {"Singapore", "SG"},
+                {"Germany", "DE"},
+                {"France", "FR"},
+                {"Italy", "IT"},
+                {"United Kingdom", "GB"},
+                {"United States", "US"},
+                {"Canada", "CA"},
+                {"Spain", "ES"},
+                {"Netherlands", "NL"},
+                {"Belgium", "BE"},
+                {"Switzerland", "CH"},
+                {"Austria", "AT"},
+                {"Poland", "PL"},
+                {"Sweden", "SE"},
+                {"Russia", "RU"},
+                {"Ukraine", "UA"},
+                {"Australia", "AU"},
+                {"New Zealand", "NZ"},
+                {"Brazil", "BR"},
+                {"Argentina", "AR"},
+                {"Mexico", "MX"},
+                {"South Africa", "ZA"},
+                {"Nigeria", "NG"},
+                {"Kenya", "KE"},
+                {"Ethiopia", "ET"},
+                {"Ghana", "GH"},
+                {"Bangladesh", "BD"},
+                {"Sri Lanka", "LK"},
+                {"Greece", "GR"},
+                {"Portugal", "PT"},
+                {"Czech Republic", "CZ"},
+                {"Romania", "RO"},
+                {"Hungary", "HU"},
+                {"Finland", "FI"},
+                {"Norway", "NO"},
+                {"Denmark", "DK"},
+                {"Ireland", "IE"},
+                {"Israel", "IL"},
+                {"Philippines", "PH"},
+                {"Hong Kong", "HK"}
+        };
+        List<String> codes = new ArrayList<>();
+        for (String[] c : countries) {
+            String name = c[0];
+            String code = c[1];
+            if (code.equalsIgnoreCase(query) || name.toLowerCase().contains(q)) {
+                codes.add(code);
+            }
+        }
+        return codes.stream().distinct().collect(Collectors.toList());
     }
 
 
@@ -339,12 +457,12 @@ public class ProductServiceImpl implements IProductService {
             Cell titleCell = titleRow.createCell(0);
             titleCell.setCellValue("Stock Report - " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
             titleCell.setCellStyle(titleStyle);
-            sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 9));
+            sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 10));
             titleRow.setHeightInPoints(30);
 
             // Create header row
             Row headerRow = sheet.createRow(1);
-            String[] headers = {"#", "Product Name", "Origin", "Category", "Sub Category", 
+            String[] headers = {"#", "Product Name (EN)", "Product Name (AR)", "Origin", "Category", "Sub Category", 
                                "Unit", "In Stock", "Stock Quantity", "Production Date", "Expiration Date"};
             
             for (int i = 0; i < headers.length; i++) {
@@ -367,51 +485,56 @@ public class ProductServiceImpl implements IProductService {
                 cell0.setCellValue(i + 1);
                 cell0.setCellStyle(dataStyle);
                 
-                // Product Name
+                // Product Name (EN)
                 Cell cell1 = row.createCell(1);
-                cell1.setCellValue(product.getName() != null ? product.getName() : "");
+                cell1.setCellValue(product.getEnglishName() != null ? product.getEnglishName() : (product.getName() != null ? product.getName() : ""));
                 cell1.setCellStyle(dataStyle);
                 
+                // Product Name (AR)
+                Cell cellNameAr = row.createCell(2);
+                cellNameAr.setCellValue(product.getArabicName() != null ? product.getArabicName() : "");
+                cellNameAr.setCellStyle(dataStyle);
+                
                 // Origin
-                Cell cell2 = row.createCell(2);
+                Cell cell2 = row.createCell(3);
                 cell2.setCellValue(product.getOrigin() != null ? product.getOrigin() : "");
                 cell2.setCellStyle(dataStyle);
                 
                 // Category
-                Cell cell3 = row.createCell(3);
+                Cell cell3 = row.createCell(4);
                 cell3.setCellValue(product.getCategory() != null && product.getCategory().getName() != null 
                     ? product.getCategory().getName() : "");
                 cell3.setCellStyle(dataStyle);
                 
                 // Sub Category
-                Cell cell4 = row.createCell(4);
+                Cell cell4 = row.createCell(5);
                 cell4.setCellValue(product.getSubCategory() != null && product.getSubCategory().getName() != null 
                     ? product.getSubCategory().getName() : "");
                 cell4.setCellStyle(dataStyle);
                 
                 // Unit
-                Cell cell5 = row.createCell(5);
+                Cell cell5 = row.createCell(6);
                 cell5.setCellValue(product.getUnit() != null ? product.getUnit() : "");
                 cell5.setCellStyle(dataStyle);
                 
                 // In Stock
-                Cell cell6 = row.createCell(6);
+                Cell cell6 = row.createCell(7);
                 cell6.setCellValue(product.isInStock() ? "Yes" : "No");
                 cell6.setCellStyle(dataStyle);
                 
                 // Stock Quantity
-                Cell cell7 = row.createCell(7);
+                Cell cell7 = row.createCell(8);
                 cell7.setCellValue(product.getStockQuantity() != null ? product.getStockQuantity() : 0);
                 cell7.setCellStyle(dataStyle);
                 
                 // Production Date
-                Cell cell8 = row.createCell(8);
+                Cell cell8 = row.createCell(9);
                 cell8.setCellValue(product.getProductionDate() != null 
                     ? product.getProductionDate().format(dateFormatter) : "");
                 cell8.setCellStyle(dataStyle);
                 
                 // Expiration Date
-                Cell cell9 = row.createCell(9);
+                Cell cell9 = row.createCell(10);
                 cell9.setCellValue(product.getExpirationDate() != null 
                     ? product.getExpirationDate().format(dateFormatter) : "");
                 cell9.setCellStyle(dataStyle);
@@ -508,7 +631,93 @@ public class ProductServiceImpl implements IProductService {
                 }
             }
 
-            // Sheet 2: Products template
+            // Sheet 2: Countries (hidden) — A=Country Name (EN), B=Country Code
+            Sheet countriesSheet = workbook.createSheet("_Countries");
+            workbook.setSheetHidden(workbook.getSheetIndex(countriesSheet), true);
+            Row countriesHeaderRow = countriesSheet.createRow(0);
+            countriesHeaderRow.createCell(0).setCellValue("Country Name");
+            countriesHeaderRow.createCell(1).setCellValue("Country Code");
+            int countryRowNum = 1;
+            String[][] countries = new String[][]{
+                    {"Saudi Arabia", "SA"},
+                    {"Egypt", "EG"},
+                    {"United Arab Emirates", "AE"},
+                    {"Kuwait", "KW"},
+                    {"Qatar", "QA"},
+                    {"Bahrain", "BH"},
+                    {"Oman", "OM"},
+                    {"Jordan", "JO"},
+                    {"Lebanon", "LB"},
+                    {"Syria", "SY"},
+                    {"Iraq", "IQ"},
+                    {"Yemen", "YE"},
+                    {"Palestine", "PS"},
+                    {"Libya", "LY"},
+                    {"Tunisia", "TN"},
+                    {"Algeria", "DZ"},
+                    {"Morocco", "MA"},
+                    {"Sudan", "SD"},
+                    {"Turkey", "TR"},
+                    {"Iran", "IR"},
+                    {"Pakistan", "PK"},
+                    {"India", "IN"},
+                    {"China", "CN"},
+                    {"Japan", "JP"},
+                    {"South Korea", "KR"},
+                    {"Taiwan", "TW"},
+                    {"Thailand", "TH"},
+                    {"Vietnam", "VN"},
+                    {"Malaysia", "MY"},
+                    {"Indonesia", "ID"},
+                    {"Singapore", "SG"},
+                    {"Germany", "DE"},
+                    {"France", "FR"},
+                    {"Italy", "IT"},
+                    {"United Kingdom", "GB"},
+                    {"United States", "US"},
+                    {"Canada", "CA"},
+                    {"Spain", "ES"},
+                    {"Netherlands", "NL"},
+                    {"Belgium", "BE"},
+                    {"Switzerland", "CH"},
+                    {"Austria", "AT"},
+                    {"Poland", "PL"},
+                    {"Sweden", "SE"},
+                    {"Russia", "RU"},
+                    {"Ukraine", "UA"},
+                    {"Australia", "AU"},
+                    {"New Zealand", "NZ"},
+                    {"Brazil", "BR"},
+                    {"Argentina", "AR"},
+                    {"Mexico", "MX"},
+                    {"South Africa", "ZA"},
+                    {"Nigeria", "NG"},
+                    {"Kenya", "KE"},
+                    {"Ethiopia", "ET"},
+                    {"Ghana", "GH"},
+                    {"Bangladesh", "BD"},
+                    {"Sri Lanka", "LK"},
+                    {"Greece", "GR"},
+                    {"Portugal", "PT"},
+                    {"Czech Republic", "CZ"},
+                    {"Romania", "RO"},
+                    {"Hungary", "HU"},
+                    {"Finland", "FI"},
+                    {"Norway", "NO"},
+                    {"Denmark", "DK"},
+                    {"Ireland", "IE"},
+                    {"Israel", "IL"},
+                    {"Philippines", "PH"},
+                    {"Hong Kong", "HK"}
+            };
+            for (String[] c : countries) {
+                Row r = countriesSheet.createRow(countryRowNum++);
+                r.createCell(0).setCellValue(c[0]);
+                r.createCell(1).setCellValue(c[1]);
+            }
+            String countriesRange = "_Countries!$A$2:$A$" + countryRowNum;
+
+            // Sheet 3: Products template
             XSSFSheet productsSheet = workbook.createSheet("Products");
             XSSFColor primaryColor = new XSSFColor(new java.awt.Color(0, 154, 167), null);
             XSSFColor secondaryColor = new XSSFColor(new java.awt.Color(0, 50, 89), null);
@@ -536,12 +745,12 @@ public class ProductServiceImpl implements IProductService {
 
             Row titleRow = productsSheet.createRow(0);
             Cell titleCell = titleRow.createCell(0);
-            titleCell.setCellValue("Products Template - Select Category and SubCategory from dropdown lists. IDs are filled automatically and sent to backend.");
+            titleCell.setCellValue("Products Template - Select Origin, Category and SubCategory from dropdown lists. IDs/Codes are filled automatically and sent to backend.");
             titleCell.setCellStyle(titleStyle);
-            productsSheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 10));
+            productsSheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 11));
 
-            // Columns: 0-8 visible, 9-10 Category ID & SubCategory ID (hidden - sent to backend)
-            String[] headers = {"Product Name*", "Origin", "Category Name*", "SubCategory Name*", "Unit", "In Stock (Yes/No)", "Stock Quantity", "Production Date (dd/MM/yyyy)", "Expiration Date (dd/MM/yyyy)", "Category ID", "SubCategory ID"};
+            // Columns: 0-9 visible, 10-11 Category ID & SubCategory ID (hidden - sent to backend), 12 Origin Code (hidden)
+            String[] headers = {"Product Name (EN)*", "Product Name (AR)", "Origin", "Category Name*", "SubCategory Name*", "Unit", "In Stock (Yes/No)", "Stock Quantity", "Production Date (dd/MM/yyyy)", "Expiration Date (dd/MM/yyyy)", "Category ID", "SubCategory ID", "Origin Code"};
             Row headerRow = productsSheet.createRow(1);
             for (int i = 0; i < headers.length; i++) {
                 Cell c = headerRow.createCell(i);
@@ -549,14 +758,15 @@ public class ProductServiceImpl implements IProductService {
                 c.setCellStyle(headerStyle);
             }
 
-            // Hide columns 9 and 10 (Category ID, SubCategory ID)
-            productsSheet.setColumnHidden(9, true);
+            // Hide columns 10, 11 and 12 (Category ID, SubCategory ID, Origin Code)
             productsSheet.setColumnHidden(10, true);
+            productsSheet.setColumnHidden(11, true);
+            productsSheet.setColumnHidden(12, true);
 
             // First data row (row index 2 = Excel row 3) with example + formulas
             Row exampleRow = productsSheet.createRow(2);
-            exampleRow.createCell(0).setCellValue("Example Product");
-            exampleRow.createCell(1).setCellValue("Egypt");
+            exampleRow.createCell(0).setCellValue("Example Product EN");
+            exampleRow.createCell(1).setCellValue("");
             exampleRow.createCell(2).setCellValue("");
             exampleRow.createCell(3).setCellValue("");
             exampleRow.createCell(4).setCellValue("kg");
@@ -564,22 +774,35 @@ public class ProductServiceImpl implements IProductService {
             exampleRow.createCell(6).setCellValue("100");
             exampleRow.createCell(7).setCellValue("");
             exampleRow.createCell(8).setCellValue("");
-            exampleRow.createCell(9).setCellFormula("IF(C3=\"\",\"\",VLOOKUP(C3,_Categories!$A$2:$B$" + catRowNum + ",2,FALSE))");
-            exampleRow.createCell(10).setCellFormula("IF(OR(C3=\"\",D3=\"\"),\"\",VLOOKUP(C3&\"|\"&D3,_SubCategories!$C$2:$D$" + subCatRowNum + ",2,FALSE))");
+            exampleRow.createCell(9).setCellValue("");
+            exampleRow.createCell(10).setCellFormula("IF(D3=\"\",\"\",VLOOKUP(D3,_Categories!$A$2:$B$" + catRowNum + ",2,FALSE))");
+            exampleRow.createCell(11).setCellFormula("IF(OR(D3=\"\",E3=\"\"),\"\",VLOOKUP(D3&\"|\"&E3,_SubCategories!$C$2:$D$" + subCatRowNum + ",2,FALSE))");
+            exampleRow.createCell(12).setCellFormula("IF(C3=\"\",\"\",VLOOKUP(C3,_Countries!$A$2:$B$" + countryRowNum + ",2,FALSE))");
 
             // Rows 3-500: empty with formulas so user can fill; formulas reference current row
             for (int r = 3; r <= 500; r++) {
                 Row row = productsSheet.createRow(r);
-                row.createCell(9).setCellFormula("IF(C" + (r + 1) + "=\"\",\"\",VLOOKUP(C" + (r + 1) + ",_Categories!$A$2:$B$" + catRowNum + ",2,FALSE))");
-                row.createCell(10).setCellFormula("IF(OR(C" + (r + 1) + "=\"\",D" + (r + 1) + "=\"\"),\"\",VLOOKUP(C" + (r + 1) + "&\"|\"&D" + (r + 1) + ",_SubCategories!$C$2:$D$" + subCatRowNum + ",2,FALSE))");
+                row.createCell(10).setCellFormula("IF(D" + (r + 1) + "=\"\",\"\",VLOOKUP(D" + (r + 1) + ",_Categories!$A$2:$B$" + catRowNum + ",2,FALSE))");
+                row.createCell(11).setCellFormula("IF(OR(D" + (r + 1) + "=\"\",E" + (r + 1) + "=\"\"),\"\",VLOOKUP(D" + (r + 1) + "&\"|\"&E" + (r + 1) + ",_SubCategories!$C$2:$D$" + subCatRowNum + ",2,FALSE))");
+                row.createCell(12).setCellFormula("IF(C" + (r + 1) + "=\"\",\"\",VLOOKUP(C" + (r + 1) + ",_Countries!$A$2:$B$" + countryRowNum + ",2,FALSE))");
             }
 
             // Create Data Validation Helper
             XSSFDataValidationHelper dvHelper = new XSSFDataValidationHelper(productsSheet);
             
+            // Dropdown for Origin (Column B, starting from row 2)
+            DataValidationConstraint originConstraint = dvHelper.createFormulaListConstraint(countriesRange);
+            CellRangeAddressList originAddressList = new CellRangeAddressList(2, 10000, 2, 2); // Column C (index 2)
+            XSSFDataValidation originValidation = (XSSFDataValidation) dvHelper.createValidation(originConstraint, originAddressList);
+            originValidation.setShowErrorBox(true);
+            originValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
+            originValidation.createErrorBox("Invalid Country", "Please select a country from the dropdown list.");
+            originValidation.setSuppressDropDownArrow(true);
+            productsSheet.addValidationData(originValidation);
+
             // Dropdown for Category Name (Column C, starting from row 2)
             DataValidationConstraint categoryConstraint = dvHelper.createFormulaListConstraint(categoriesRange);
-            CellRangeAddressList categoryAddressList = new CellRangeAddressList(2, 10000, 2, 2); // Column C (index 2)
+            CellRangeAddressList categoryAddressList = new CellRangeAddressList(2, 10000, 3, 3); // Column D (index 3)
             XSSFDataValidation categoryValidation = (XSSFDataValidation) dvHelper.createValidation(categoryConstraint, categoryAddressList);
             categoryValidation.setShowErrorBox(true);
             categoryValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
@@ -591,9 +814,9 @@ public class ProductServiceImpl implements IProductService {
             // Using INDIRECT with SUBSTITUTE to clean category name and reference named range
             // Formula: INDIRECT("SubCat_"&SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(C3," ","_"),"-","_"),"/","_"))
             // This handles spaces, hyphens, and slashes in category names
-            String subCategoryFormula = "INDIRECT(\"SubCat_\"&SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(C3,\" \",\"_\"),\"-\",\"_\"),\"/\",\"_\"))";
+            String subCategoryFormula = "INDIRECT(\"SubCat_\"&SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(D3,\" \",\"_\"),\"-\",\"_\"),\"/\",\"_\"))";
             DataValidationConstraint subCategoryConstraint = dvHelper.createFormulaListConstraint(subCategoryFormula);
-            CellRangeAddressList subCategoryAddressList = new CellRangeAddressList(2, 10000, 3, 3); // Column D (index 3), rows 3-10001
+            CellRangeAddressList subCategoryAddressList = new CellRangeAddressList(2, 10000, 4, 4); // Column E (index 4), rows 3-10001
             XSSFDataValidation subCategoryValidation = (XSSFDataValidation) dvHelper.createValidation(subCategoryConstraint, subCategoryAddressList);
             subCategoryValidation.setShowErrorBox(true);
             subCategoryValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
@@ -604,7 +827,7 @@ public class ProductServiceImpl implements IProductService {
             // Dropdown for In Stock (Column F, starting from row 2) - Yes/No
             String[] yesNoOptions = {"Yes", "No"};
             DataValidationConstraint yesNoConstraint = dvHelper.createExplicitListConstraint(yesNoOptions);
-            CellRangeAddressList yesNoAddressList = new CellRangeAddressList(2, 10000, 5, 5); // Column F (index 5)
+            CellRangeAddressList yesNoAddressList = new CellRangeAddressList(2, 10000, 6, 6); // Column G (index 6)
             XSSFDataValidation yesNoValidation = (XSSFDataValidation) dvHelper.createValidation(yesNoConstraint, yesNoAddressList);
             yesNoValidation.setShowErrorBox(true);
             yesNoValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
@@ -699,20 +922,22 @@ public class ProductServiceImpl implements IProductService {
                     Row row = sheet.getRow(rowIndex);
                     if (row == null) continue;
 
-                    String productName = getCellString(row.getCell(0));
-                    if (productName == null || productName.isBlank()) continue;
+                    String productNameEn = getCellString(row.getCell(0));
+                    String productNameAr = getCellString(row.getCell(1));
+                    if (productNameEn == null || productNameEn.isBlank()) continue;
                     rowsProcessed++;
 
-                    String origin = getCellString(row.getCell(1));
+                    String originName = getCellString(row.getCell(2));
+                    String originCodeFromSheet = getCellString(row.getCell(12));
                     
-                    String unit = getCellString(row.getCell(4));
-                    String inStockStr = getCellString(row.getCell(5));
-                    String stockQtyStr = getCellString(row.getCell(6));
-                    String productionDateStr = getCellString(row.getCell(7));
-                    String expirationDateStr = getCellString(row.getCell(8));
-                    // Columns 9 & 10: Category ID and SubCategory ID (filled by formula when user selects from dropdown)
-                    String categoryIdFromSheet = getCellString(row.getCell(9));
-                    String subCategoryIdFromSheet = getCellString(row.getCell(10));
+                    String unit = getCellString(row.getCell(5));
+                    String inStockStr = getCellString(row.getCell(6));
+                    String stockQtyStr = getCellString(row.getCell(7));
+                    String productionDateStr = getCellString(row.getCell(8));
+                    String expirationDateStr = getCellString(row.getCell(9));
+                    // Columns 10 & 11: Category ID and SubCategory ID (filled by formula when user selects from dropdown)
+                    String categoryIdFromSheet = getCellString(row.getCell(10));
+                    String subCategoryIdFromSheet = getCellString(row.getCell(11));
 
                     if (allowedCategoryId != null && categoryIdFromSheet != null && !allowedCategoryId.equals(categoryIdFromSheet)) {
                         throw new AbstractException("Category is not allowed for this supplier");
@@ -721,8 +946,10 @@ public class ProductServiceImpl implements IProductService {
 
                     ProductRequestDTO dto = new ProductRequestDTO();
                     dto.setSupplierId(supplierId);
-                    dto.setName(productName.trim());
-                    dto.setOrigin(origin != null ? origin.trim() : null);
+                    dto.setName(productNameEn.trim());
+                    dto.setEnglishName(productNameEn.trim());
+                    dto.setArabicName(productNameAr != null ? productNameAr.trim() : null);
+                    dto.setOrigin(originCodeFromSheet != null ? originCodeFromSheet.trim() : (originName != null ? originName.trim() : null));
                     dto.setCategoryId(categoryIdFromSheet);
                     dto.setSubCategoryId(subCategoryIdFromSheet);
                     dto.setUnit(unit != null && !unit.isBlank() ? unit.trim() : null);
@@ -732,24 +959,27 @@ public class ProductServiceImpl implements IProductService {
                     dto.setExpirationDate(parseDateSafe(expirationDateStr, dateFormatter));
 
                     try {
-                        checkProductNameUnique(supplierId, dto.getName(), null);
+                        checkProductNameUnique(supplierId, productNameEn, null);
                         Product product = productMapper.toEntity(dto);
                         setCategory(product, dto);
                         if (product.getSupplier() == null) {
                             product.setSupplier(User.builder().id(supplierId).build());
                         }
+                        product.setEnglishName(productNameEn);
+                        if (productNameAr != null) product.setArabicName(productNameAr);
+                        product.setName(productNameEn);
                         productRepository.save(product);
                         successCount++;
                     } catch (AbstractException e) {
                         errors.add(BulkUploadResultDto.RowErrorDto.builder()
                                 .rowNumber(rowIndex + 1)
-                                .productName(productName)
+                                .productName(productNameEn)
                                 .errorMessage(e.getMessage())
                                 .build());
                     } catch (Exception e) {
                         errors.add(BulkUploadResultDto.RowErrorDto.builder()
                                 .rowNumber(rowIndex + 1)
-                                .productName(productName)
+                                .productName(productNameEn)
                                 .errorMessage(e.getMessage() != null ? e.getMessage() : "Unknown error")
                                 .build());
                     }
@@ -860,6 +1090,3 @@ public class ProductServiceImpl implements IProductService {
         }
     }
 }
-
-
-

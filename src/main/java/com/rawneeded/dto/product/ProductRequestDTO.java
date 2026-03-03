@@ -12,6 +12,8 @@ import java.util.Map;
 @Data
 public class ProductRequestDTO {
     private String name;
+    private String englishName;
+    private String arabicName;
     private String origin;
     private String supplierId;
     private boolean inStock;

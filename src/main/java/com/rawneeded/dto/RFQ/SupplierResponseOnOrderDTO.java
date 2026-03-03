@@ -20,4 +20,5 @@ public class SupplierResponseOnOrderDTO {
     private float availableQuantity;
     private String shippingInfo;
     private String phoneNumber;
+    private String analysisCertificateUrl;
 }
